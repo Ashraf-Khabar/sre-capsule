@@ -7,7 +7,7 @@ import { fetchWithAuth, parseApiJson } from './api.js';
 const minted = new Map();
 let navSeq = 0;
 
-const PAGE_SLUG = /^(dashboard|management|dora|finops|healing|ai|ai-usage|ai-config|workspaces|organizations|gateways|ingestion|plugins|settings|profile|about|review)$/i;
+const PAGE_SLUG = /^(dashboard|suite|management|dora|finops|healing|ai|ai-usage|ai-config|workspaces|organizations|gateways|ingestion|plugins|settings|profile|about|review)$/i;
 
 /** Token from /dashboard/<hash>, /review/id=<hash>, or an older address. */
 export function secureLinkTokenFromPath(pathname) {

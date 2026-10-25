@@ -33,7 +33,11 @@ func handleHealingInsights(w http.ResponseWriter, r *http.Request) {
 	}
 	project := r.URL.Query().Get("project")
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	rows, err := core.HealingService.ListInsights(r.Context(), project, limit)
+	load := core.HealingService.ListInsights
+	if r.URL.Query().Get("archived") == "1" {
+		load = core.HealingService.ListArchivedInsights
+	}
+	rows, err := load(r.Context(), project, limit)
 	if err != nil {
 		writeJSONError(w, "Failed to load healing insights", http.StatusInternalServerError)
 		return

@@ -8,7 +8,7 @@
     <link rel="icon" href="/assets/logo.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap">
-    <link rel="stylesheet" href="/style.css?v=1.0.66-docs-url">
+    <link rel="stylesheet" href="/style.css?v=1.0.82-suite-align">
     <script>
         try {
             if (localStorage.getItem('sre-sidebar-collapsed') === '1') {
@@ -219,6 +219,15 @@
                     <path d="M12 15l4-4"></path>
                     <path d="M8 19h8"></path>
                 </svg><span class="nav-text" data-i18n="nav.dashboard">Dashboard</span>
+            </div>
+            <div class="nav-item role-non-admin" onclick="switchView('suite', this)" data-tooltip="Suite health">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19V5"></path>
+                    <path d="M4 19h16"></path>
+                    <path d="M8 16v-5"></path>
+                    <path d="M12 16V8"></path>
+                    <path d="M16 16v-3"></path>
+                </svg><span class="nav-text" data-i18n="nav.suite">Suite health</span>
             </div>
             <div class="nav-section-label role-manager-only" style="margin-top: 10px;" data-i18n="nav.section.executive">EXECUTIVE</div>
             <div class="nav-item role-manager-only" onclick="switchView('dora', this)" data-tooltip="DORA Dashboard">
@@ -495,6 +504,44 @@
                 <button type="button" id="scroll-top-btn" class="scroll-top-btn" onclick="scrollDashboardToTop()" title="Back to top" aria-label="Back to top">↑</button>
             </section>
 
+            <section id="view-suite" class="view-section executive-view">
+                <div class="header-bar">
+                    <div>
+                        <h1 class="executive-view__title">Suite health</h1>
+                        <p class="executive-view__subtitle">Last pipeline run for each gateway, compared with the last green run.</p>
+                    </div>
+                </div>
+                <div class="executive-toolbar">
+                    <select id="suite-project-filter" class="login-input" aria-label="Gateway"></select>
+                    <select id="suite-status-filter" class="login-input" aria-label="Outcome">
+                        <option value="all">All outcomes</option>
+                        <option value="failing">Failing</option>
+                        <option value="green">Green</option>
+                    </select>
+                    <input id="suite-search" class="login-input" type="search" placeholder="Gateway, test, branch, or run" aria-label="Search" autocomplete="off">
+                    <button type="button" class="btn-secondary" id="suite-refresh">Refresh</button>
+                </div>
+                <div class="kpi-card-grid executive-kpi-grid" id="suite-kpis"></div>
+                <div class="data-card">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Gateway</th>
+                                <th>Pass rate</th>
+                                <th>Last run</th>
+                                <th>Failed</th>
+                                <th>Duration</th>
+                                <th>Branch</th>
+                                <th>Versus last green</th>
+                            </tr>
+                        </thead>
+                        <tbody id="suite-table-body"></tbody>
+                    </table>
+                    <p id="suite-empty" class="dora-budget__hint" hidden>No pipeline runs match these filters.</p>
+                </div>
+                <div id="suite-detail" class="suite-detail" hidden></div>
+            </section>
+
             <section id="view-unified-report" class="view-section unified-report-view" aria-label="Unified pipeline report">
                 <div class="unified-report-toolbar">
                     <button type="button" class="btn btn-secondary" onclick="closeUnifiedReport()">← Back to Dashboard</button>
@@ -738,12 +785,27 @@
                     <aside class="hc-listpane">
                         <div class="hc-listpane__bar">
                             <div class="hc-listpane__title">
-                                <h2>Open failures</h2>
+                                <h2 id="healing-list-title">Open failures</h2>
                                 <span id="healing-stat-total" class="hc-count">—</span>
+                            </div>
+                            <div class="hc-list-switch" role="tablist">
+                                <button type="button" class="hc-list-switch__btn is-active" id="hc-tab-open" data-mode="open">Open</button>
+                                <button type="button" class="hc-list-switch__btn" id="hc-tab-archive" data-mode="archive">Archive</button>
                             </div>
                             <div class="hc-listpane__tools">
                                 <select id="healing-project-filter" class="hc-ctrl-select" title="Filter by gateway"></select>
                                 <button type="button" class="btn btn-secondary btn-sm" onclick="window.loadHealingInsights && window.loadHealingInsights()">Refresh</button>
+                            </div>
+                            <div class="hc-listpane__select" id="hc-list-select" hidden>
+                                <label class="hc-selectall">
+                                    <input type="checkbox" id="hc-select-all">
+                                    <span>Select all</span>
+                                </label>
+                                <div id="hc-bulk-bar" class="hc-bulk" hidden>
+                                    <span id="hc-bulk-count"></span>
+                                    <button type="button" class="btn btn-secondary btn-sm" id="hc-bulk-archive">Archive</button>
+                                    <button type="button" class="btn btn-secondary btn-sm btn-danger" id="hc-bulk-delete">Delete</button>
+                                </div>
                             </div>
                         </div>
                         <div id="healing-insights-body" role="list"></div>
@@ -1262,6 +1324,7 @@
                                             <label for="pref-landing-view">Default home screen</label>
                                             <select id="pref-landing-view" class="login-input" style="max-width:none;">
                                                 <option value="dashboard">Telemetry Stream (Dashboard)</option>
+                                                <option value="suite">Suite health</option>
                                                 <option value="ingestion">CI/CD Gateways</option>
                                                 <option value="finops">FinOps Intelligence</option>
                                                 <option value="dora">DORA Metrics</option>
@@ -1808,6 +1871,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
-    <script type="module" src="app.js?v=1.0.69-failure-page"></script>
+    <script type="module" src="app.js?v=1.0.82-suite-align"></script>
 </body>
 </html>

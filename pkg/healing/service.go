@@ -23,20 +23,34 @@ func NewService(db *sql.DB) *Service {
 	return &Service{db: db}
 }
 
-// ListInsights returns recent unresolved failures with rule-based summaries.
+// ListInsights returns recent unresolved failures that are still open.
 func (s *Service) ListInsights(ctx context.Context, projectName string, limit int) ([]InsightRow, error) {
+	return s.listInsights(ctx, projectName, limit, false)
+}
+
+// ListArchivedInsights returns unresolved failures that were archived.
+func (s *Service) ListArchivedInsights(ctx context.Context, projectName string, limit int) ([]InsightRow, error) {
+	return s.listInsights(ctx, projectName, limit, true)
+}
+
+func (s *Service) listInsights(ctx context.Context, projectName string, limit int, archived bool) ([]InsightRow, error) {
 	if s == nil || s.db == nil {
 		return nil, fmt.Errorf("healing service not initialized")
 	}
 	if limit <= 0 {
 		limit = 100
 	}
+	archivedFlag := 0
+	if archived {
+		archivedFlag = 1
+	}
 	q := `
 		SELECT id, project_name, name, status, COALESCE(error_message,''), COALESCE(mcp_healed,0), created_at
 		FROM incidents
 		WHERE is_resolved = 0
+		  AND COALESCE(archived, 0) = ?
 		  AND UPPER(status) NOT IN ('PASSED', 'PASS', '')`
-	args := []interface{}{}
+	args := []interface{}{archivedFlag}
 	if projectName != "" {
 		q += ` AND project_name = ?`
 		args = append(args, projectName)

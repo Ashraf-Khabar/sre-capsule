@@ -36,6 +36,7 @@ export default {
     'nav.section.account': '账户',
     'nav.workspaces': '工作区',
     'nav.dashboard': '仪表盘',
+    'nav.suite': '套件健康',
     'nav.dora': 'DORA 仪表盘',
     'nav.finops': 'FinOps 智能分析',
     'nav.healing': '自愈中心',

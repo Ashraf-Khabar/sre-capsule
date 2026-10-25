@@ -99,7 +99,7 @@ func viewSlug(view string) string {
 
 func knownViewSlug(slug string) bool {
 	switch strings.ToLower(slug) {
-	case "dashboard", "management", "dora", "finops", "healing", "ai", "ai-usage", "ai-config",
+	case "dashboard", "suite", "management", "dora", "finops", "healing", "ai", "ai-usage", "ai-config",
 		"workspaces", "organizations", "gateways", "ingestion", "plugins", "settings", "profile", "about", "review":
 		return true
 	default:

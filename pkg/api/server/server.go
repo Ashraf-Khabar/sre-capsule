@@ -146,6 +146,7 @@ func Start(initialConfig core.Config) {
 	registerMaintenanceRoutes(config)
 	registerWebhookRoutes(config)
 	registerExecutionRoutes(config)
+	registerSuiteHealthRoutes(config)
 	registerReportRoutes(config)
 	registerIncidentRoutes(config)
 	registerArtifactRoutes(config)

@@ -974,6 +974,35 @@ func isStableSelector(selector string) bool {
 	return strings.HasPrefix(sel, `a[href="`) && strings.HasSuffix(sel, `"]`) && !strings.Contains(sel, "*")
 }
 
+// countExactAttr counts attr="value" only when attr is the whole attribute
+// name. A raw search for id="ack" also matches the tail of data-testid="ack".
+func countExactAttr(html, attr, val string) int {
+	if html == "" || attr == "" {
+		return 0
+	}
+	n := 0
+	for _, quote := range []string{`"`, `'`} {
+		needle := attr + "=" + quote + val + quote
+		from := 0
+		for {
+			i := strings.Index(html[from:], needle)
+			if i < 0 {
+				break
+			}
+			i += from
+			if i == 0 || !isAttrNameByte(html[i-1]) {
+				n++
+			}
+			from = i + len(needle)
+		}
+	}
+	return n
+}
+
+func isAttrNameByte(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= '0' && b <= '9') || b == '-' || b == '_' || b == ':'
+}
+
 func countSelectorHits(html, selector string) int {
 	sel := CanonicalSelector(selector)
 	if html == "" || sel == "" {
@@ -985,13 +1014,13 @@ func countSelectorHits(html, selector string) int {
 		if id == "" {
 			return 0
 		}
-		return strings.Count(lower, `id="`+id+`"`) + strings.Count(lower, `id='`+id+`'`)
+		return countExactAttr(lower, "id", id)
 	}
 	re := regexp.MustCompile(`\[([^=\]]+)=["']([^"']+)["']\]`)
 	if m := re.FindStringSubmatch(sel); len(m) >= 3 {
 		attr := strings.ToLower(strings.TrimSpace(m[1]))
 		val := strings.ToLower(strings.TrimSpace(m[2]))
-		return strings.Count(lower, attr+`="`+val+`"`) + strings.Count(lower, attr+`='`+val+`'`)
+		return countExactAttr(lower, attr, val)
 	}
 	needle := strings.ToLower(sel)
 	if needle == "" {
@@ -1014,8 +1043,7 @@ func LocatorExistsInHTML(html, selector string) bool {
 		if id == "" {
 			return false
 		}
-		return strings.Contains(lower, `id="`+strings.ToLower(id)+`"`) ||
-			strings.Contains(lower, `id='`+strings.ToLower(id)+`'`)
+		return countExactAttr(lower, "id", strings.ToLower(id)) > 0
 	}
 
 	// [attr="value"] or [attr='value']
@@ -1024,8 +1052,7 @@ func LocatorExistsInHTML(html, selector string) bool {
 		if m := re.FindStringSubmatch(selector); len(m) >= 3 {
 			attr := strings.ToLower(strings.TrimSpace(m[1]))
 			val := strings.ToLower(strings.TrimSpace(m[2]))
-			return strings.Contains(lower, attr+`="`+val+`"`) ||
-				strings.Contains(lower, attr+`='`+val+`'`)
+			return countExactAttr(lower, attr, val) > 0
 		}
 	}
 

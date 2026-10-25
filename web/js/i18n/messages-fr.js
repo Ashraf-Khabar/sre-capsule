@@ -36,6 +36,7 @@ export default {
     'nav.section.account': 'COMPTE',
     'nav.workspaces': 'Espaces de travail',
     'nav.dashboard': 'Tableau de bord',
+    'nav.suite': 'Santé des suites',
     'nav.dora': 'Tableau de bord DORA',
     'nav.finops': 'Intelligence FinOps',
     'nav.healing': 'Hub d\'auto-réparation',

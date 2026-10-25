@@ -35,7 +35,7 @@ func registerIncidentRoutes(config *core.Config) {
 
 			if claims.Role == "admin" || claims.Role == "manager" {
 				query = `SELECT id, project_name, name, status, error_message, console_logs, error_logs, is_resolved, resolved_by, created_at, resolved_at, pipeline_run_id 
-					FROM incidents WHERE created_at >= ? AND created_at <= ?`
+					FROM incidents WHERE created_at >= ? AND created_at <= ? AND COALESCE(archived, 0) = 0`
 				args = []interface{}{tw.From, tw.To}
 				if projectFilter != "" && projectFilter != "all" {
 					query += " AND project_name = ?"
@@ -48,7 +48,7 @@ func registerIncidentRoutes(config *core.Config) {
 						 JOIN projects p ON i.project_name = p.name
 						 JOIN user_teams ut ON p.team_id = ut.team_id
 						 JOIN users u ON u.id = ut.user_id
-						 WHERE u.username = ? AND i.created_at >= ? AND i.created_at <= ?`
+						 WHERE u.username = ? AND i.created_at >= ? AND i.created_at <= ? AND COALESCE(i.archived, 0) = 0`
 				args = []interface{}{claims.Username, tw.From, tw.To}
 				if projectFilter != "" && projectFilter != "all" {
 					query += " AND i.project_name = ?"
@@ -176,6 +176,41 @@ func registerIncidentRoutes(config *core.Config) {
 					http.Error(w, "Database write contention failed: "+dbErr.Error(), http.StatusInternalServerError)
 					return
 				}
+			}
+			w.WriteHeader(http.StatusOK)
+
+		} else if r.Method == http.MethodPatch {
+			if !core.CanDeleteIncidents(claims.Role) {
+				http.Error(w, "Lead or Manager role required to archive records.", http.StatusForbidden)
+				return
+			}
+			var req struct {
+				IDs      []int `json:"ids"`
+				Archived *bool `json:"archived"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.IDs) == 0 {
+				http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+				return
+			}
+			if !core.UserCanAccessAllIncidents(claims.Username, claims.Role, req.IDs) {
+				http.Error(w, "Access denied: incident outside your teams", http.StatusForbidden)
+				return
+			}
+			archived := 1
+			if req.Archived != nil && !*req.Archived {
+				archived = 0
+			}
+			placeholders := make([]string, len(req.IDs))
+			args := make([]interface{}, 0, len(req.IDs)+1)
+			args = append(args, archived)
+			for i, id := range req.IDs {
+				placeholders[i] = "?"
+				args = append(args, id)
+			}
+			query := "UPDATE incidents SET archived = ? WHERE id IN (" + strings.Join(placeholders, ",") + ")"
+			if _, err := core.DB.Exec(query, args...); err != nil {
+				http.Error(w, "Database error", http.StatusInternalServerError)
+				return
 			}
 			w.WriteHeader(http.StatusOK)
 

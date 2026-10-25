@@ -525,6 +525,10 @@ def test_acknowledge_only_active_sev1_disk_latency_on_shard_7(driver):
 	if _, _, _, ok := ResolveHealedFromTestContext(source, original); ok {
 		t.Fatal("the test file must not name the replacement selector")
 	}
+	got := AssessLocatorPrecision(html, original, "#ack-lat-shard-7", 0.93)
+	if !got.Verified || got.Level != "high" || got.Matches != 1 {
+		t.Fatalf("the id is unique; data-testid must not count as a second id, got %+v", got)
+	}
 }
 
 func TestIsEquivalentBrokenLocator_XPathVariant(t *testing.T) {

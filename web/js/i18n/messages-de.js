@@ -36,6 +36,7 @@ export default {
     'nav.section.account': 'KONTO',
     'nav.workspaces': 'Arbeitsbereiche',
     'nav.dashboard': 'Dashboard',
+    'nav.suite': 'Suite-Zustand',
     'nav.dora': 'DORA-Dashboard',
     'nav.finops': 'FinOps Intelligence',
     'nav.healing': 'Self-Healing Hub',

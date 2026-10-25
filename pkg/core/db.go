@@ -220,6 +220,7 @@ func runSchemaMigrations() {
 		{"projects", "slo_failure_rate", `ALTER TABLE projects ADD COLUMN slo_failure_rate REAL DEFAULT 0.15`},
 		{"incidents", "rca_status", `ALTER TABLE incidents ADD COLUMN rca_status TEXT DEFAULT ''`},
 		{"incidents", "has_rca", `ALTER TABLE incidents ADD COLUMN has_rca INTEGER DEFAULT 0`},
+		{"incidents", "archived", `ALTER TABLE incidents ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`},
 		{"pipeline_runs", "outcome", `ALTER TABLE pipeline_runs ADD COLUMN outcome TEXT DEFAULT 'unknown'`},
 		{"pipeline_runs", "finished_at", `ALTER TABLE pipeline_runs ADD COLUMN finished_at DATETIME`},
 		{"pipeline_runs", "execution_env", `ALTER TABLE pipeline_runs ADD COLUMN execution_env TEXT DEFAULT 'UNKNOWN'`},

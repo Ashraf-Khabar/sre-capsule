@@ -9,6 +9,7 @@ let currentRole = '';
 const selected = new Set(); // kept for bulk helpers that other views may call
 let failures = [];
 let activeId = 0;
+let listMode = 'open';
 const ANALYSIS_KEY = 'sre-healing-analyses';
 const ACTIVE_KEY = 'sre-healing-active';
 const analyses = new Map();
@@ -260,22 +261,86 @@ function highlightFixToken(line, token, precise) {
     return line.split(token).map(esc).join(fixHighlightSpan(token, precise ? 'verified' : 'fix'));
 }
 
-function getHighlightTokenForLine(lineIndex, line, srcLine, healed, original, data) {
-    const lineNo = lineIndex + 1;
-    for (const h of (Array.isArray(data?.fix_highlights) ? data.fix_highlights : [])) {
-        if (Number(h.line) === lineNo) return (h.token || healed || '').trim();
-    }
-    if (healed && line.includes(healed)) return healed;
-    const action = line.match(LOCATOR_ACTION_RE) || line.match(FILL_ACTION_RE);
-    if (!action || !healed) return '';
-    const tok = action[2].trim();
-    if (line.includes(healed)) return healed;
-    if (original && tok === original) return healed;
-    if (srcLine !== undefined && srcLine !== line && line.includes(healed)) return healed;
-    if (srcLine !== undefined && original && srcLine.includes(original) && line.includes(healed)) return healed;
-    return '';
+function highlightGreen(text) {
+    if (!text) return '';
+    return `<span class="hc-change-hl" style="background:#86efac;color:#052e16;font-weight:800;padding:0 4px;border-radius:3px">${esc(text)}</span>`;
 }
 
+/* Green-highlight only the slice of the new line that differs from the old one. */
+function highlightUpdatedLine(before, after) {
+    before = String(before ?? '');
+    after = String(after ?? '');
+    if (after === before) return esc(after);
+    let start = 0;
+    const max = Math.min(before.length, after.length);
+    while (start < max && before[start] === after[start]) start++;
+    let endBefore = before.length;
+    let endAfter = after.length;
+    while (endBefore > start && endAfter > start && before[endBefore - 1] === after[endAfter - 1]) {
+        endBefore--;
+        endAfter--;
+    }
+    const mid = after.slice(start, endAfter);
+    if (!mid) return esc(after);
+    return esc(after.slice(0, start)) + highlightGreen(mid) + esc(after.slice(endAfter));
+}
+
+function quoteSelector(healed) {
+    const s = String(healed || '');
+    if (s.includes("'") && !s.includes('"')) return `"${s}"`;
+    return `'${s}'`;
+}
+
+function applyAssignmentPreview(code, original, healed) {
+    if (!code || !original || !healed || original === healed) return code || '';
+    const quoted = quoteSelector(healed);
+    const lines = String(code).replace(/\r\n/g, '\n').split('\n');
+    const names = [];
+    for (const line of lines) {
+        const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(['"])(.*)\2\s*$/);
+        if (m && m[3] === original) names.push(m[1]);
+    }
+    return lines.map(line => {
+        let next = line.split(`'${original}'`).join(quoted).split(`"${original}"`).join(quoted);
+        for (const name of names) {
+            const q = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            next = next
+                .replace(new RegExp(`(find_element(?:s)?\\s*\\(\\s*By\\.\\w+\\s*,\\s*)${q}(\\s*\\))`), `$1${quoted}$2`)
+                .replace(new RegExp(`((?:page\\.)?locator\\s*\\(\\s*)${q}(\\s*\\))`), `$1${quoted}$2`)
+                .replace(new RegExp(`(cy\\.get\\s*\\(\\s*)${q}(\\s*\\))`), `$1${quoted}$2`);
+        }
+        return next;
+    }).join('\n');
+}
+
+function overlayChangeLines(display, changeLines) {
+    const lines = String(display || '').replace(/\r\n/g, '\n').split('\n');
+    for (const r of (Array.isArray(changeLines) ? changeLines : [])) {
+        const before = String(r?.before || '');
+        const after = String(r?.after || '');
+        if (!before.trim() || !after.trim() || before.trim() === after.trim()) continue;
+        let idx = Number(r.line) > 0 ? Number(r.line) - 1 : -1;
+        if (idx < 0 || !lines[idx] || lines[idx].trim() !== before.trim()) {
+            idx = lines.findIndex(l => l.trim() === before.trim());
+        }
+        if (idx < 0) continue;
+        const indent = (lines[idx].match(/^\s*/) || [''])[0];
+        lines[idx] = after.startsWith(' ') || after.startsWith('\t') ? after : indent + after.trim();
+    }
+    return lines.join('\n');
+}
+
+function beforeForLine(i, line, srcLines, changeLines) {
+    for (const r of (Array.isArray(changeLines) ? changeLines : [])) {
+        if (Number(r?.line) === i + 1 && r.before && r.after && String(r.after).trim() === line.trim()) {
+            return String(r.before);
+        }
+    }
+    for (const r of (Array.isArray(changeLines) ? changeLines : [])) {
+        if (r?.after && String(r.after).trim() === line.trim() && r.before) return String(r.before);
+    }
+    return srcLines[i] ?? '';
+}
 function changedLineIndexes(sourceCode, displayCode) {
     const src = String(sourceCode || '').replace(/\r\n/g, '\n').split('\n');
     const dst = String(displayCode || '').replace(/\r\n/g, '\n').split('\n');
@@ -291,47 +356,40 @@ function changedLineIndexes(sourceCode, displayCode) {
     return out;
 }
 
-function renderHighlightedLines(displayCode, sourceCode, healed, original, data) {
+function renderHighlightedLines(displayCode, sourceCode, changeLines) {
     const srcLines = String(sourceCode || '').replace(/\r\n/g, '\n').split('\n');
     const dstLines = String(displayCode || '').replace(/\r\n/g, '\n').split('\n');
-    const changed = new Set(changedLineIndexes(sourceCode, displayCode));
-    let start = 0;
-    let end = dstLines.length;
-    if (changed.size && dstLines.length > 40) {
-        const arr = [...changed].sort((a, b) => a - b);
-        start = Math.max(0, arr[0] - 3);
-        end = Math.min(dstLines.length, arr[arr.length - 1] + 4);
-    }
-    return dstLines.slice(start, end).map((line, j) => {
-        const i = start + j;
-        const token = getHighlightTokenForLine(i, line, srcLines[i], healed, original, data);
-        const isChange = changed.has(i);
+    return dstLines.map((line, i) => {
+        const oldLine = beforeForLine(i, line, srcLines, changeLines);
+        const isChange = oldLine !== line;
         const rowCls = isChange ? 'hc-code-line hc-code-line--verified' : 'hc-code-line';
-        const content = isChange && token ? highlightFixToken(line, token, true) : esc(line);
+        const content = isChange ? highlightUpdatedLine(oldLine, line) : esc(line);
         return `<div class="${rowCls}"><span class="hc-code-line__n">${i + 1}</span><span class="hc-code-line__t">${content}</span></div>`;
     }).join('');
 }
 
 function renderFixCodeBlock(code, data, id) {
-    if (!code) return '';
+    if (!code && !data?.source_code && !data?.change_lines) return '';
     data = normalizeFixResponse(data);
     const expl = data?.explanation || '';
     const locs = resolveFixLocators(data);
-    const sourceCode = (data?.source_code || '').trim() || '';
-    let displayCode = code;
-    if (locs.healed && sourceCode) {
-        if (sourceCode === code || !code.includes(locs.healed)) {
-            displayCode = applyFixPreview(sourceCode, locs.original, locs.healed, expl) || code;
-        }
+    const sourceCode = String(data?.source_code || '').replace(/\r\n/g, '\n');
+    const base = sourceCode.trim() ? sourceCode : String(code || '');
+    let displayCode = applyAssignmentPreview(
+        applyFixPreview(base, locs.original, locs.healed, expl),
+        locs.original,
+        locs.healed,
+    );
+    if (code && locs.healed && String(code).includes(locs.healed) && changedLineIndexes(base, code).length) {
+        displayCode = String(code).replace(/\r\n/g, '\n');
     }
-    const changed = changedLineIndexes(sourceCode, displayCode);
+    displayCode = overlayChangeLines(displayCode, data.change_lines);
+    const changed = changedLineIndexes(sourceCode || base, displayCode);
     if (!changed.length) return '';
-    const changes = renderChangeLines(data.change_lines, locs.original, locs.healed, true, data.source_path);
-    const lines = renderHighlightedLines(displayCode, sourceCode, locs.healed, locs.original, data);
+    const lines = renderHighlightedLines(displayCode, sourceCode || base, data.change_lines);
     const path = String(data.source_path || '').trim();
-    return `<div class="hc-panel__code">
-        <div class="hc-panel__code-head"><strong>Code fix</strong>${path ? `<span> ${esc(path)}</span>` : ''}</div>
-        ${changes}
+    return `<div class="hc-panel__code hc-panel__code--updated">
+        <div class="hc-panel__code-head"><strong>Code updated</strong>${path ? `<span>${esc(path)}</span>` : ''}</div>
         <div class="hc-code-lines" role="presentation">${lines}</div>
     </div>`;
 }
@@ -531,11 +589,32 @@ export function loadHealingView() {
     if (list && !list.dataset.bound) {
         list.dataset.bound = '1';
         list.addEventListener('click', (event) => {
+            if (event.target.closest('.hc-row-check')) return;
             const row = event.target.closest('.hc-row');
             if (!row) return;
             selectFailure(Number(row.dataset.id));
         });
+        list.addEventListener('change', (event) => {
+            const cb = event.target.closest?.('.hc-cb');
+            if (!cb) return;
+            window._onCardCheck(Number(cb.value), cb.checked);
+        });
     }
+    const selectBar = document.getElementById('hc-list-select');
+    if (selectBar) selectBar.hidden = !canDeleteIncidents(currentRole);
+    if (selectBar && !selectBar.dataset.bound) {
+        selectBar.dataset.bound = '1';
+        document.getElementById('hc-select-all')?.addEventListener('change', (event) => window._selectAll(event.target.checked));
+        document.getElementById('hc-bulk-delete')?.addEventListener('click', () => window.bulkDelete());
+        document.getElementById('hc-bulk-archive')?.addEventListener('click', () => window.bulkArchive());
+    }
+    if (!document.body.dataset.hcListModeBound) {
+        document.body.dataset.hcListModeBound = '1';
+        document.querySelectorAll('.hc-list-switch__btn').forEach(btn => {
+            btn.addEventListener('click', () => setListMode(btn.dataset.mode));
+        });
+    }
+    syncListModeChrome();
     loadHealingInsights();
     _loadAIChip();
     if (sel && !sel.dataset.bound) {
@@ -573,7 +652,10 @@ export async function loadHealingInsights() {
     const body = document.getElementById('healing-insights-body');
     if (!body) return;
     const project = document.getElementById('healing-project-filter')?.value || '';
-    const q = project ? `?project=${encodeURIComponent(project)}&limit=100` : '?limit=100';
+    const params = new URLSearchParams({ limit: '100' });
+    if (project) params.set('project', project);
+    if (listMode === 'archive') params.set('archived', '1');
+    const q = `?${params.toString()}`;
 
     body.innerHTML = `<div class="hc-loading">Loading…</div>`;
 
@@ -583,9 +665,11 @@ export async function loadHealingInsights() {
     updateStats(rows);
     selected.clear();
     _updateBulkBar();
+    const selectAll = document.getElementById('hc-select-all');
+    if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
 
     if (!rows.length) {
-        body.innerHTML = `<div class="hc-empty">No open failures — all tests are passing.</div>`;
+        body.innerHTML = `<div class="hc-empty">${listMode === 'archive' ? 'No archived failures.' : 'No open failures — all tests are passing.'}</div>`;
         return;
     }
     failures = rows;
@@ -604,7 +688,7 @@ export async function loadHealingInsights() {
         }
     }
     if (activeId && failures.some(r => Number(r.incident_id) === activeId)) {
-        document.querySelectorAll('.hc-row').forEach(el => el.classList.toggle('is-active', Number(el.dataset.id) === activeId));
+        document.querySelectorAll('.hc-row-wrap, .hc-row').forEach(el => el.classList.toggle('is-active', Number(el.dataset.id) === activeId));
         const stage = document.getElementById('healing-stage');
         if (stage && !stage.querySelector('.hc-panel__inner') && analyses.has(activeId)) selectFailure(activeId, false);
         return;
@@ -638,7 +722,7 @@ function selectFailure(id, autoAnalyze) {
     const stage = document.getElementById('healing-stage');
     if (!row || !stage) return;
     rememberActive(id);
-    document.querySelectorAll('.hc-row').forEach(el => el.classList.toggle('is-active', Number(el.dataset.id) === id));
+    document.querySelectorAll('.hc-row-wrap, .hc-row').forEach(el => el.classList.toggle('is-active', Number(el.dataset.id) === id));
     const cause = cat(row.error_category);
     const framework = fw(row.framework || row.project_name);
     const causeStyle = `color:${cause.color};border-color:${cause.color}30;background:${cause.color}18`;
@@ -700,15 +784,21 @@ function renderRow(r) {
     const cause = cat(r.error_category);
     const active = id === activeId ? ' is-active' : '';
     const analyzed = analyses.has(id) ? ' · analyzed' : '';
+    const check = canDeleteIncidents(currentRole)
+        ? `<label class="hc-row-check"><input type="checkbox" class="hc-cb" value="${id}" aria-label="Select failure ${id}"${selected.has(id) ? ' checked' : ''}></label>`
+        : '';
     return `
-<button type="button" class="hc-row${active}" id="hc-card-${id}" data-id="${id}" role="listitem">
-    <span class="hc-row__top">
-        <span class="hc-row__cause" style="color:${cause.color}">${esc(cause.label)}</span>
-        <span class="hc-row__id">#${id}</span>
-    </span>
-    <span class="hc-row__name">${esc(shortTestName(r.test_name))}</span>
-    <span class="hc-row__meta">${esc(framework.label)}${r.mcp_healed ? ' · saved' : ''}${analyzed}</span>
-</button>`;
+<div class="hc-row-wrap${active}" id="hc-card-${id}" data-id="${id}" role="listitem">
+    ${check}
+    <button type="button" class="hc-row${active}" data-id="${id}">
+        <span class="hc-row__top">
+            <span class="hc-row__cause" style="color:${cause.color}">${esc(cause.label)}</span>
+            <span class="hc-row__id">#${id}</span>
+        </span>
+        <span class="hc-row__name">${esc(shortTestName(r.test_name))}</span>
+        <span class="hc-row__meta">${esc(framework.label)}${r.mcp_healed ? ' · saved' : ''}${analyzed}</span>
+    </button>
+</div>`;
 }
 
 /* ── Checkbox / bulk select ───────────────────────────────────────────── */
@@ -719,6 +809,8 @@ window._onCardCheck = (id, checked) => {
 };
 
 window._selectAll = checked => {
+    const sa = document.getElementById('hc-select-all');
+    if (sa) { sa.checked = !!checked; sa.indeterminate = false; }
     document.querySelectorAll('.hc-cb').forEach(cb => {
         cb.checked = checked;
         const id = parseInt(cb.value);
@@ -731,12 +823,8 @@ function _updateBulkBar() {
     const bar = document.getElementById('hc-bulk-bar');
     const cnt = document.getElementById('hc-bulk-count');
     if (!bar) return;
-    if (selected.size > 0) {
-        bar.style.display = 'flex';
-        if (cnt) cnt.textContent = `${selected.size} selected`;
-    } else {
-        bar.style.display = 'none';
-    }
+    bar.hidden = selected.size === 0;
+    if (cnt) cnt.textContent = `${selected.size} selected`;
 }
 
 function _syncSelectAll() {
@@ -751,17 +839,67 @@ function _syncSelectAll() {
 
 window.bulkDelete = async () => {
     if (!selected.size) return;
-    const ids = [...selected].join(',');
-    window.showConfirmModal('Delete failures?', `Delete ${selected.size} selected failure(s)?`, 'danger', async () => {
-        const { ok } = await parseApiJson(await fetchWithAuth(`/api/incidents?ids=${ids}`, { method: 'DELETE' }));
+    if (!canDeleteIncidents(currentRole)) { notify('Manager or Lead role required.', 'error'); return; }
+    const ids = [...selected];
+    window.showConfirmModal('Delete failures?', `Delete ${ids.length} selected failure(s)?`, 'danger', async () => {
+        const { ok } = await parseApiJson(await fetchWithAuth(`/api/incidents?ids=${ids.join(',')}`, { method: 'DELETE' }));
         if (!ok) { notify('Failed to delete.', 'error'); return; }
-        selected.forEach(id => document.getElementById(`hc-card-${id}`)?.remove());
-        selected.clear();
-        _updateBulkBar();
-        notify(`${ids.split(',').length} failure(s) deleted.`, 'success');
+        forgetFailures(ids);
+        notify(`${ids.length} failure(s) deleted.`, 'success');
         loadHealingInsights();
     });
 };
+
+window.bulkArchive = async () => {
+    if (!selected.size) return;
+    if (!canDeleteIncidents(currentRole)) { notify('Manager or Lead role required.', 'error'); return; }
+    const restoring = listMode === 'archive';
+    const ids = [...selected];
+    const title = restoring ? 'Restore failures?' : 'Archive failures?';
+    const message = restoring
+        ? `Restore ${ids.length} selected failure(s) to Open failures?`
+        : `Archive ${ids.length} selected failure(s)? They leave this list and stay stored.`;
+    window.showConfirmModal(title, message, 'warning', async () => {
+        const { ok } = await parseApiJson(await fetchWithAuth('/api/incidents', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids, archived: !restoring }),
+        }));
+        if (!ok) { notify(restoring ? 'Failed to restore.' : 'Failed to archive.', 'error'); return; }
+        forgetFailures(ids);
+        notify(`${ids.length} failure(s) ${restoring ? 'restored' : 'archived'}.`, 'success');
+        loadHealingInsights();
+    });
+};
+
+function setListMode(mode) {
+    listMode = mode === 'archive' ? 'archive' : 'open';
+    syncListModeChrome();
+    loadHealingInsights();
+}
+
+function syncListModeChrome() {
+    const title = document.getElementById('healing-list-title');
+    if (title) title.textContent = listMode === 'archive' ? 'Archive' : 'Open failures';
+    document.getElementById('hc-tab-open')?.classList.toggle('is-active', listMode === 'open');
+    document.getElementById('hc-tab-archive')?.classList.toggle('is-active', listMode === 'archive');
+    const action = document.getElementById('hc-bulk-archive');
+    if (action) action.textContent = listMode === 'archive' ? 'Restore' : 'Archive';
+}
+
+function forgetFailures(ids) {
+    ids.forEach(id => {
+        analyses.delete(Number(id));
+        selected.delete(Number(id));
+        if (activeId === Number(id)) {
+            activeId = 0;
+            const stage = document.getElementById('healing-stage');
+            if (stage) stage.innerHTML = emptyStage();
+        }
+    });
+    persistAnalyses();
+    _updateBulkBar();
+}
 
 /* ── Delete single ────────────────────────────────────────────────────── */
 export function deleteHealingFailure(id) {
@@ -769,13 +907,7 @@ export function deleteHealingFailure(id) {
     window.showConfirmModal('Delete failure?', `Delete INC #${id}?`, 'danger', async () => {
         const { ok } = await parseApiJson(await fetchWithAuth(`/api/incidents?ids=${id}`, { method: 'DELETE' }));
         if (!ok) { notify('Failed to delete.', 'error'); return; }
-        document.getElementById(`hc-card-${id}`)?.remove();
-        selected.delete(id); _updateBulkBar();
-        if (activeId === id) {
-            activeId = 0;
-            const stage = document.getElementById('healing-stage');
-            if (stage) stage.innerHTML = emptyStage();
-        }
+        forgetFailures([id]);
         notify(`INC #${id} deleted.`, 'success');
         loadHealingInsights();
     });

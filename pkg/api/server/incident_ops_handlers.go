@@ -32,6 +32,25 @@ func attachIncidentOps(incidents []map[string]interface{}) {
 		inc["runbook_summary"] = op.Runbook
 		inc["postmortem"] = op.Postmortem
 	}
+	attachSameCauseHistory(incidents)
+}
+
+func attachSameCauseHistory(incidents []map[string]interface{}) {
+	keys := make([]core.CauseKey, 0, len(incidents))
+	for _, inc := range incidents {
+		id, _ := inc["id"].(int)
+		project, _ := inc["project_name"].(string)
+		name, _ := inc["name"].(string)
+		fp, _ := inc["fingerprint"].(string)
+		keys = append(keys, core.CauseKey{ID: id, Project: project, Fingerprint: fp, Name: name})
+	}
+	history := core.LoadSameCauseHistory(core.DB, keys)
+	for _, inc := range incidents {
+		id, _ := inc["id"].(int)
+		if priors := history[id]; len(priors) > 0 {
+			inc["prior_causes"] = priors
+		}
+	}
 }
 
 func handleIncidentOps(w http.ResponseWriter, r *http.Request, idStr string) {

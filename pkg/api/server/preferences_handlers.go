@@ -147,7 +147,7 @@ func normalizeLanguage(v string) string {
 
 func normalizeLandingView(v string) string {
 	switch v {
-	case "dashboard", "ingestion", "finops", "dora", "plugins", "rca", "healing", "quarantine", "runbooks", "about", "ai-config", "execution-hub":
+	case "dashboard", "suite", "ingestion", "finops", "dora", "plugins", "rca", "healing", "quarantine", "runbooks", "about", "ai-config", "execution-hub":
 		return v
 	default:
 		return "dashboard"

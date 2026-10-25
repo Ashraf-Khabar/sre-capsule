@@ -16,11 +16,11 @@ import { applyRoleVisibility, canAccessFinOps, canAccessPlugins, canResolveIncid
 import * as executionHub from './js/execution-hub.js';
 import * as reportViewer from './js/report-viewer.js?v=1.0.67-no-ai-status';
 import * as workflowEditor from './js/workflow-editor.js';
-import * as healing from './js/healing.js?v=1.0.69-failure-page';
+import * as healing from './js/healing.js?v=1.0.76-archive';
 import * as dora from './js/dora.js?v=1.0.62-maint';
 import { setupAutocomplete } from './js/autocomplete.js';
 import { initTheme, applyTheme } from './js/ui.js';
-import { initI18n, t, setLocale, applyI18n } from './js/i18n.js?v=1.0.63-docs';
+import { initI18n, t, setLocale, applyI18n } from './js/i18n.js?v=1.0.80-suite-page';
 import { initCommentUI, openResolveComposer, hydrateOpenComments } from './js/comments.js?v=1.0.40-edit-fill';
 import { publishSecureLink, secureLinkTokenFromPath } from './js/links.js';
 
@@ -1074,6 +1074,7 @@ function incidentOpsHTML(inc, canAct) {
         `<li>#${Number(item.id)} · ${escapeHtml(item.at || '')}</li>`).join('');
     const signals = Number(inc.signal_count) > 1
         ? `<span class="ops-signal">${inc.signal_count} signals, same cause</span><ul class="ops-signal-list">${signalItems}</ul>` : '';
+    const prior = priorCauseHTML(inc);
     const maint = inc.maintenance && inc.maintenance.reason
         ? `<span class="ops-signal">During maintenance · ${escapeHtml(inc.maintenance.reason)}</span>` : '';
     const waitingMin = unackedMinutes(inc);
@@ -1105,7 +1106,24 @@ function incidentOpsHTML(inc, canAct) {
            <textarea class="ops-postmortem-edit" id="pm-edit-${inc.id}">${escapeHtml(inc.postmortem)}</textarea>
            <button type="button" class="btn btn-secondary btn-sm" onclick="savePostmortem(${Number(inc.id)})">Save draft</button>`
         : '';
-    return `<div class="incident-ops">${maint}${waiting}${signals}<p class="ops-timeline">${escapeHtml(bits.join(' · '))}</p><div class="ops-actions">${actions}</div>${runbook}${draft}</div>`;
+    return `<div class="incident-ops">${maint}${waiting}${signals}${prior}<p class="ops-timeline">${escapeHtml(bits.join(' · '))}</p><div class="ops-actions">${actions}</div>${runbook}${draft}</div>`;
+}
+
+function priorCauseHTML(inc) {
+    const own = new Set((inc.signal_list || []).map(item => Number(item.id)));
+    own.add(Number(inc.id));
+    const priors = (Array.isArray(inc.prior_causes) ? inc.prior_causes : []).filter(item => !own.has(Number(item.id)));
+    if (!priors.length) return '';
+    const items = priors.map(item => {
+        const bits = [`#${Number(item.id)}`];
+        if (item.created_at) bits.push(item.created_at);
+        if (item.acknowledged_by) bits.push(`Acknowledged ${item.acknowledged_by}${item.severity ? ' ' + item.severity : ''}`);
+        if (item.resolved) bits.push(`Resolved ${item.resolved_by || ''}`.trim());
+        const excerpt = item.postmortem ? `<p class="ops-prior__excerpt">${escapeHtml(item.postmortem)}</p>` : '';
+        const change = item.change ? `<p class="ops-prior__excerpt">Selector ${escapeHtml(item.change)}</p>` : '';
+        return `<li class="ops-prior__item"><span>${escapeHtml(bits.join(' · '))}</span>${excerpt}${change}</li>`;
+    }).join('');
+    return `<div class="ops-prior"><span class="ops-signal">Same cause before</span><ul class="ops-prior__list">${items}</ul></div>`;
 }
 
 function unackedMinutes(inc) {
@@ -1114,6 +1132,203 @@ function unackedMinutes(inc) {
     if (!started) return 0;
     return Math.floor((Date.now() - started) / 60000);
 }
+
+function formatSuiteDuration(ms) {
+    const n = Number(ms) || 0;
+    if (n < 1000) return `${n} ms`;
+    if (n < 60000) return `${(n / 1000).toFixed(n < 10000 ? 1 : 0)} s`;
+    const min = Math.floor(n / 60000);
+    const sec = Math.round((n % 60000) / 1000);
+    return `${min} min ${sec} s`;
+}
+
+function shortSuiteName(name) {
+    const raw = String(name || '');
+    const parts = raw.split('>');
+    const last = parts[parts.length - 1].trim();
+    return last || raw;
+}
+
+function shortRunId(id) {
+    const raw = String(id || '');
+    return raw.length > 12 ? raw.slice(-12) : raw;
+}
+
+let suiteRows = [];
+let suiteSelected = '';
+let suiteFiltersBound = false;
+
+function suiteVersus(card) {
+    const last = card.last || {};
+    if (!card.last_green) return { text: 'No earlier green run', tone: 'muted' };
+    const delta = (last.duration_ms || 0) - (card.last_green.duration_ms || 0);
+    if (delta === 0) return { text: 'Same duration as last green', tone: 'info' };
+    if (delta > 0) return { text: `Slower by ${formatSuiteDuration(delta)}`, tone: 'warn' };
+    return { text: `Faster by ${formatSuiteDuration(Math.abs(delta))}`, tone: 'pass' };
+}
+
+function suiteFiltered() {
+    const project = document.getElementById('suite-project-filter')?.value || '';
+    const status = document.getElementById('suite-status-filter')?.value || 'all';
+    const q = (document.getElementById('suite-search')?.value || '').trim().toLowerCase();
+    return suiteRows.filter(card => {
+        if (project && card.project_name !== project) return false;
+        const green = !!card.last?.green;
+        if (status === 'green' && !green) return false;
+        if (status === 'failing' && green) return false;
+        if (!q) return true;
+        const names = []
+            .concat(card.new_failures || [])
+            .concat(card.fixed_since_previous || [])
+            .concat((card.slowest || []).map(row => row.name));
+        const blob = [card.project_name, card.last?.run_id, card.last?.branch, ...names].join(' ').toLowerCase();
+        return blob.includes(q);
+    });
+}
+
+function fillSuiteProjects() {
+    const sel = document.getElementById('suite-project-filter');
+    if (!sel) return;
+    const current = sel.value;
+    const names = [...new Set(suiteRows.map(row => row.project_name).filter(Boolean))].sort();
+    sel.innerHTML = `<option value="">All gateways</option>${names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
+    if (names.includes(current)) sel.value = current;
+}
+
+function suiteListHTML(items, empty, withDuration) {
+    if (!items.length) return `<p class="suite-detail__none">${empty}</p>`;
+    return `<ul class="suite-detail__list">${items.map(item => {
+        const name = typeof item === 'string' ? item : item.name;
+        const meta = withDuration ? formatSuiteDuration(item.duration_ms) : '';
+        return `<li><span class="suite-detail__name" title="${escapeHtml(name)}">${escapeHtml(shortSuiteName(name))}</span>${meta ? `<span class="suite-detail__meta">${meta}</span>` : ''}</li>`;
+    }).join('')}</ul>`;
+}
+
+function renderSuiteDetail(card) {
+    const box = document.getElementById('suite-detail');
+    if (!box) return;
+    if (!card) {
+        box.hidden = true;
+        box.innerHTML = '';
+        return;
+    }
+    const last = card.last || {};
+    const green = !!last.green;
+    const failureTitle = green
+        ? 'This run is green'
+        : (card.last_green ? 'New since the last green run' : 'Failures in this run');
+    box.hidden = false;
+    const heading = (tone, title) => `<h3 class="form-section-title kpi-tone-${tone}" style="border-top:none;padding-top:0;margin:0 0 8px;">${title}</h3>`;
+    box.innerHTML = `
+        <section class="data-card">
+            ${heading(green ? 'success' : 'danger', failureTitle)}
+            ${suiteListHTML(card.new_failures || [], green ? 'No failures in this run.' : 'None named in the report.', false)}
+        </section>
+        <section class="data-card">
+            ${heading('success', 'Fixed since the previous run')}
+            ${suiteListHTML(card.fixed_since_previous || [], 'None', false)}
+        </section>
+        <section class="data-card">
+            ${heading('warn', 'Slowest')}
+            ${suiteListHTML(card.slowest || [], 'No durations in this report.', true)}
+        </section>`;
+}
+
+function renderSuiteBoard() {
+    const body = document.getElementById('suite-table-body');
+    const empty = document.getElementById('suite-empty');
+    const kpis = document.getElementById('suite-kpis');
+    if (!body || !empty || !kpis) return;
+    const rows = suiteFiltered();
+    const failing = rows.filter(card => !card.last?.green).length;
+    const green = rows.length - failing;
+    const avg = rows.length
+        ? Math.round(rows.reduce((sum, card) => sum + (Number(card.pass_rate) || 0), 0) / rows.length)
+        : 0;
+    const avgTone = !rows.length ? 'neutral' : (avg >= 90 ? 'success' : (avg >= 70 ? 'warn' : 'danger'));
+    const tile = (label, value, tone) => `<article class="kpi-card-premium"><span class="kpi-card-premium__label">${label}</span><span class="kpi-card-premium__value kpi-tone-${tone}">${value}</span></article>`;
+    kpis.innerHTML = [
+        tile('Gateways', rows.length, 'info'),
+        tile('Failing', failing, 'danger'),
+        tile('Green', green, 'success'),
+        tile('Average pass rate', `${avg}%`, avgTone)
+    ].join('');
+    if (!rows.length) {
+        body.innerHTML = '';
+        empty.hidden = false;
+        empty.textContent = suiteRows.length ? 'No pipeline runs match these filters.' : 'No pipeline runs yet.';
+        renderSuiteDetail(null);
+        return;
+    }
+    empty.hidden = true;
+    if (!rows.some(card => card.project_name === suiteSelected)) suiteSelected = rows[0].project_name;
+    const statusClass = { pass: 'budget-status--healthy', warn: 'budget-status--watch', muted: 'budget-status--quiet', info: 'budget-status--quiet' };
+    body.innerHTML = rows.map(card => {
+        const last = card.last || {};
+        const ok = !!last.green;
+        const rate = Math.max(0, Math.min(100, Number(card.pass_rate) || 0));
+        const versus = suiteVersus(card);
+        const failed = Number(last.failed) || 0;
+        const selected = card.project_name === suiteSelected ? ' class="is-selected"' : '';
+        return `<tr${selected} data-suite-project="${escapeHtml(card.project_name || '')}">
+            <td>${escapeHtml(card.project_name || '')}</td>
+            <td class="budget-status ${ok ? 'budget-status--healthy' : 'budget-status--freeze'}">${rate}%</td>
+            <td title="${escapeHtml(last.run_id || '')}">${escapeHtml(shortRunId(last.run_id))}</td>
+            <td><span class="budget-status ${failed ? 'budget-status--freeze' : 'budget-status--healthy'}">${failed}</span> / ${Number(last.total) || 0}</td>
+            <td>${formatSuiteDuration(last.duration_ms)}</td>
+            <td>${escapeHtml(last.branch || '—')}</td>
+            <td class="budget-status ${statusClass[versus.tone] || 'budget-status--quiet'}">${escapeHtml(versus.text)}</td>
+        </tr>`;
+    }).join('');
+    body.querySelectorAll('tr').forEach(row => {
+        row.addEventListener('click', () => {
+            suiteSelected = row.getAttribute('data-suite-project') || '';
+            renderSuiteBoard();
+        });
+    });
+    renderSuiteDetail(rows.find(card => card.project_name === suiteSelected) || null);
+}
+
+function bindSuiteFilters() {
+    if (suiteFiltersBound) return;
+    suiteFiltersBound = true;
+    ['suite-project-filter', 'suite-status-filter', 'suite-search'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', renderSuiteBoard);
+        document.getElementById(id)?.addEventListener('change', renderSuiteBoard);
+    });
+    document.getElementById('suite-refresh')?.addEventListener('click', () => window.loadSuiteHealth(true));
+}
+
+window.loadSuiteHealth = async function (force) {
+    const body = document.getElementById('suite-table-body');
+    if (!body) return;
+    bindSuiteFilters();
+    try {
+        const { ok, data } = await parseApiJson(await fetchWithAuth('/api/suite-health?project=all'));
+        if (!ok) {
+            suiteRows = [];
+            renderSuiteBoard();
+            document.getElementById('suite-empty').hidden = false;
+            document.getElementById('suite-empty').textContent = 'Suite health is unavailable.';
+            return;
+        }
+        const sig = JSON.stringify(data);
+        if (!force && sig === window.__suiteHealthSig) {
+            renderSuiteBoard();
+            return;
+        }
+        window.__suiteHealthSig = sig;
+        suiteRows = Array.isArray(data) ? data : [];
+        fillSuiteProjects();
+        renderSuiteBoard();
+    } catch {
+        const empty = document.getElementById('suite-empty');
+        if (empty) {
+            empty.hidden = false;
+            empty.textContent = 'Suite health is unavailable.';
+        }
+    }
+};
 
 window.refreshMaintenanceBanner = async function () {
     const el = document.getElementById('maintenance-banner');
@@ -1708,6 +1923,9 @@ window.switchView = function (id, el) {
         if (window.loadDORAView) window.loadDORAView();
     } else if (typeof window.destroyDORAChart === 'function') {
         window.destroyDORAChart();
+    }
+    if (id === 'suite' && payload && canAccessView(payload.role, 'suite')) {
+        if (window.loadSuiteHealth) window.loadSuiteHealth();
     }
     if (id === 'about') {
         if (window.loadAboutView) window.loadAboutView();
