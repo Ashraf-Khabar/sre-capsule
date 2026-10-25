@@ -1518,33 +1518,57 @@ window.loadActivity = async function (force) {
 
 function historyDocumentHTML(flow) {
     const incidents = Array.isArray(flow?.incidents) ? flow.incidents : [];
-    const events = incidents.reduce((count, item) => count + (item.events || []).length, 0);
+    const eventCount = incidents.reduce((count, item) => count + (item.events || []).length, 0);
+    const ink = { danger: '#b42318', success: '#067647', warn: '#b54708', info: '#175cd3', neutral: '#344054' };
     const blocks = incidents.map(item => {
-        const title = `#${item.id} · ${escapeHtml(item.project || '')} · ${escapeHtml(item.name || '')}`;
-        const meta = [item.status, item.severity, item.archived ? 'Archived' : ''].filter(Boolean).map(escapeHtml).join(' · ');
-        const rows = (item.events || []).map(ev => `<article class="ev">
-            <div class="ev__meta"><span class="ev__kind">${escapeHtml(HISTORY_KIND[ev.kind] || ev.kind || 'Action')}</span><time>${escapeHtml(ev.at || '')}</time>${ev.actor ? `<span>${escapeHtml(ev.actor)}</span>` : ''}</div>
-            <p>${escapeHtml(ev.text || '')}</p>
-        </article>`).join('');
-        return `<section class="incident"><h2>${title}</h2>${meta ? `<p class="meta">${meta}</p>` : ''}${rows}</section>`;
+        const meta = [item.project, item.status, item.severity, item.archived ? 'Archived' : ''].filter(Boolean).map(escapeHtml).join(' · ');
+        const steps = (item.events || []).map(ev => {
+            const tone = activityKindTone(ev.kind);
+            const color = ink[tone] || ink.neutral;
+            const who = ev.actor ? `<span>${escapeHtml(ev.actor)}</span>` : '';
+            return `<li class="step">
+                <span class="mark" style="background:${color}"></span>
+                <div>
+                    <div class="meta"><strong style="color:${color}">${escapeHtml(HISTORY_KIND[ev.kind] || ev.kind || 'Action')}</strong><time>${escapeHtml(ev.at || '')}</time>${who}</div>
+                    ${ev.text ? `<p>${escapeHtml(ev.text)}</p>` : ''}
+                </div>
+            </li>`;
+        }).join('');
+        return `<section class="card">
+            <h2>#${Number(item.id)} · ${escapeHtml(item.name || '')}</h2>
+            ${meta ? `<p class="sub">${meta}</p>` : ''}
+            <ol>${steps}</ol>
+        </section>`;
     }).join('');
     const note = flow?.truncated ? '<p class="note">The newest 400 incidents are included.</p>' : '';
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SRE Capsule — Action history</title>
 <style>
-body{font-family:Inter,Segoe UI,sans-serif;color:#1c2434;margin:32px}
-h1{font-size:22px;margin:0 0 4px}
-.lead,.meta,.note{color:#5e6b7c;font-size:12px}
-.incident{break-inside:avoid;border-top:1px solid #d8dee6;padding:16px 0}
-h2{font-size:14px;margin:0 0 4px}
-.ev{margin-top:10px}
-.ev__meta{display:flex;gap:10px;font-size:11px;color:#5e6b7c}
-.ev__kind{font-weight:700;color:#1e3a5f;letter-spacing:.04em;text-transform:uppercase}
-p{margin:4px 0 0;font-size:13px;white-space:pre-wrap}
-@media print{body{margin:12mm}}
+body{font-family:Inter,Segoe UI,sans-serif;color:#1c2434;margin:28px;background:#fff}
+.doc-head{margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid #d8dee6}
+.brand{margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#5e6b7c}
+h1{font-size:22px;margin:4px 0}
+.lead,.sub,.note,.meta{color:#5e6b7c;font-size:12px}
+.lead{margin:0}
+.note{margin:8px 0 0}
+.card{border:1px solid #d8dee6;border-radius:10px;padding:16px 18px;margin:0 0 14px;break-inside:avoid}
+h2{font-size:15px;margin:0}
+.sub{margin:4px 0 0}
+ol{list-style:none;margin:14px 0 0;padding:0}
+.step{display:grid;grid-template-columns:16px 1fr;column-gap:12px;position:relative;padding-bottom:12px}
+.step:last-child{padding-bottom:0}
+.step:not(:last-child)::before{content:"";position:absolute;left:7px;top:14px;bottom:0;width:1px;background:#d8dee6}
+.mark{width:8px;height:8px;margin-top:4px;border-radius:50%;justify-self:center}
+.meta{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline}
+.meta strong{font-weight:650}
+p{margin:4px 0 0;font-size:13px;line-height:1.5;white-space:pre-wrap}
+@media print{body{margin:12mm}.card{break-inside:auto}}
 </style></head><body>
+<header class="doc-head">
+<p class="brand">SRE Capsule</p>
 <h1>Action history</h1>
-<p class="lead">${incidents.length} incidents · ${events} actions and messages · ${escapeHtml(flow?.generated_at || '')}</p>
+<p class="lead">${incidents.length} incidents · ${eventCount} actions and messages · ${escapeHtml(flow?.generated_at || '')}</p>
 ${note}
+</header>
 ${blocks || '<p>No actions recorded yet.</p>'}
 </body></html>`;
 }
