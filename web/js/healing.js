@@ -69,8 +69,42 @@ const CAT = {
     unknown:        { label: 'Unknown',       mcp: 'Script',        color: '#95a5a6' },
 };
 
+const SPECIALISTS = [
+    { id: 'locator', label: 'Locator' },
+    { id: 'stale_element', label: 'Stale element' },
+    { id: 'timeout', label: 'Timeout' },
+    { id: 'assertion', label: 'Assertion' },
+    { id: 'network', label: 'Network' },
+    { id: 'script_failure', label: 'Script' },
+];
+
 const fw  = r => FW[(r || '').toLowerCase().replace(/[^a-z]/g, '')] || FW_DEF;
 const cat = r => CAT[(r || '').toLowerCase().replace(/[^a-z_]/g, '')] || CAT.unknown;
+
+function activeSpecialistId(category) {
+    const id = String(category || '').toLowerCase().replace(/[^a-z_]/g, '');
+    if (id === 'script_failure' || id === 'unknown' || !CAT[id]) return 'script_failure';
+    return id;
+}
+
+function specialistGraph(category) {
+    const active = activeSpecialistId(category);
+    const nodes = SPECIALISTS.map(spec => {
+        const on = spec.id === active;
+        return `<span class="hc-spec${on ? ' is-active' : ''}" data-spec="${spec.id}" role="listitem"${on ? ' aria-current="true"' : ''}>${esc(spec.label)}</span>`;
+    }).join('<span class="hc-spec__link" aria-hidden="true"></span>');
+    return `<div class="hc-specs" role="list" aria-label="Specialists">${nodes}</div>`;
+}
+
+function syncSpecialistGraph(category) {
+    const active = activeSpecialistId(category);
+    document.querySelectorAll('#healing-stage .hc-spec').forEach(el => {
+        const on = el.dataset.spec === active;
+        el.classList.toggle('is-active', on);
+        if (on) el.setAttribute('aria-current', 'true');
+        else el.removeAttribute('aria-current');
+    });
+}
 const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const ago = s => { if (!s) return ''; const m = Math.floor((Date.now() - new Date(s)) / 60000); return m < 2 ? 'just now' : m < 60 ? `${m}m ago` : Math.floor(m / 60) < 24 ? `${Math.floor(m/60)}h ago` : `${Math.floor(m/1440)}d ago`; };
 
@@ -740,6 +774,7 @@ function selectFailure(id, autoAnalyze) {
                     <span class="hc-badge" style="${causeStyle}">${esc(cause.label)}</span>
                     ${row.mcp_healed ? `<span class="hc-badge hc-badge--healed">${ICON.check}&nbsp;Saved</span>` : ''}
                 </div>
+                ${specialistGraph(row.error_category)}
             </div>
             <div class="hc-stage__actions">
                 ${canMgr ? `<button type="button" class="btn btn-primary" id="hc-analyze">${analyses.has(id) ? 'Analyze again' : 'Analyze'}</button>` : `<p class="hc-stage__note">A lead or manager can analyze this failure.</p>`}
@@ -987,6 +1022,7 @@ function paintAnalysis(id, data) {
         const badge = formatConfidenceBadge(fix, locs);
         const domOk = fix.dom_used;
         const mcpId = fix.active_mcp || fix.error_category || '';
+        syncSpecialistGraph(mcpId);
         const locatorMCP = mcpId === 'locator' || (!mcpId && !!(locs.original || locs.healed));
         const mcpLabel = fix.active_mcp_label || (CAT[mcpId] && CAT[mcpId].mcp) || '';
         const problem = (fix.problem || '').trim();

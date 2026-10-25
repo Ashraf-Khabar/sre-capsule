@@ -37,6 +37,7 @@ export default {
     'nav.workspaces': 'Arbeitsbereiche',
     'nav.dashboard': 'Dashboard',
     'nav.suite': 'Suite-Zustand',
+    'nav.activity': 'Aktivität',
     'nav.dora': 'DORA-Dashboard',
     'nav.finops': 'FinOps Intelligence',
     'nav.healing': 'Self-Healing Hub',

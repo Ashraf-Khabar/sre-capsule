@@ -174,6 +174,7 @@ export function canAccessView(role, viewId) {
     switch (viewId) {
         case 'dashboard':
         case 'suite':
+        case 'activity':
         case 'unified-report':
             return canAccessOperations(role);
         case 'about':
@@ -208,6 +209,7 @@ export function accessDeniedMessage(viewId) {
     const labels = {
         dashboard: 'Dashboard',
         suite: 'Suite health',
+        activity: 'Activity',
         finops: 'FinOps Intelligence',
         organizations: 'Workspaces',
         management: 'IAM Access',

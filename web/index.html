@@ -8,7 +8,7 @@
     <link rel="icon" href="/assets/logo.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap">
-    <link rel="stylesheet" href="/style.css?v=1.0.82-suite-align">
+    <link rel="stylesheet" href="/style.css?v=1.0.86-history-flow">
     <script>
         try {
             if (localStorage.getItem('sre-sidebar-collapsed') === '1') {
@@ -229,6 +229,12 @@
                     <path d="M16 16v-3"></path>
                 </svg><span class="nav-text" data-i18n="nav.suite">Suite health</span>
             </div>
+            <div class="nav-item role-non-admin" onclick="switchView('activity', this)" data-tooltip="Activity">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="8"></circle>
+                    <polyline points="12 8 12 12 15 14"></polyline>
+                </svg><span class="nav-text" data-i18n="nav.activity">Activity</span>
+            </div>
             <div class="nav-section-label role-manager-only" style="margin-top: 10px;" data-i18n="nav.section.executive">EXECUTIVE</div>
             <div class="nav-item role-manager-only" onclick="switchView('dora', this)" data-tooltip="DORA Dashboard">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -352,6 +358,7 @@
                         </div>
 
                         <button type="button" class="btn btn-secondary" onclick="refreshDashboard()">Refresh</button>
+                        <button type="button" class="btn btn-secondary" onclick="exportHistoryPDF()">History PDF</button>
                         <button type="button" class="btn btn-secondary btn-accent" onclick="toggleAnalytics()">
                             <svg style="width:14px;height:14px;stroke:currentColor;fill:none;flex-shrink:0;" viewBox="0 0 24 24" stroke-width="2">
                                 <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -520,6 +527,7 @@
                     </select>
                     <input id="suite-search" class="login-input" type="search" placeholder="Gateway, test, branch, or run" aria-label="Search" autocomplete="off">
                     <button type="button" class="btn-secondary" id="suite-refresh">Refresh</button>
+                    <button type="button" class="btn-secondary" onclick="exportHistoryPDF()">History PDF</button>
                 </div>
                 <div class="kpi-card-grid executive-kpi-grid" id="suite-kpis"></div>
                 <div class="data-card">
@@ -540,6 +548,37 @@
                     <p id="suite-empty" class="dora-budget__hint" hidden>No pipeline runs match these filters.</p>
                 </div>
                 <div id="suite-detail" class="suite-detail" hidden></div>
+            </section>
+
+            <section id="view-activity" class="view-section executive-view">
+                <div class="header-bar">
+                    <div>
+                        <h1 class="executive-view__title">Activity</h1>
+                        <p class="executive-view__subtitle">Each incident as a flow. Newest incidents first, actions in order.</p>
+                    </div>
+                </div>
+                <div class="executive-toolbar">
+                    <select id="activity-project-filter" class="login-input" aria-label="Gateway"></select>
+                    <select id="activity-kind-filter" class="login-input" aria-label="Action">
+                        <option value="">All actions</option>
+                        <option value="opened">Opened</option>
+                        <option value="acknowledged">Acknowledged</option>
+                        <option value="mitigated">Mitigated</option>
+                        <option value="comment">Message</option>
+                        <option value="selector">Selector</option>
+                        <option value="runbook">Runbook</option>
+                        <option value="patch">Patch</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="postmortem">Postmortem</option>
+                    </select>
+                    <input id="activity-search" class="login-input" type="search" placeholder="Incident, message, or person" aria-label="Search" autocomplete="off">
+                    <button type="button" class="btn-secondary" id="activity-refresh">Refresh</button>
+                    <button type="button" class="btn-secondary" onclick="exportHistoryPDF()">History PDF</button>
+                </div>
+                <p id="activity-note" class="dora-budget__hint" hidden>The newest 400 incidents are included.</p>
+                <div class="kpi-card-grid executive-kpi-grid" id="activity-kpis"></div>
+                <div id="activity-feed"></div>
+                <p id="activity-empty" class="dora-budget__hint" hidden>No actions recorded yet.</p>
             </section>
 
             <section id="view-unified-report" class="view-section unified-report-view" aria-label="Unified pipeline report">
@@ -774,6 +813,7 @@
                         <span id="healing-ai-chip" class="hc-chip hc-chip--off">
                             <span class="hc-dot"></span>AI loading…
                         </span>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="exportHistoryPDF()">History PDF</button>
                         <button type="button" class="btn btn-primary btn-sm role-manager-only" onclick="window.switchView && window.switchView('ai-config', document.querySelector('.nav-item[onclick*=ai-config]'))">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                             AI Configuration
@@ -1325,6 +1365,7 @@
                                             <select id="pref-landing-view" class="login-input" style="max-width:none;">
                                                 <option value="dashboard">Telemetry Stream (Dashboard)</option>
                                                 <option value="suite">Suite health</option>
+                                                <option value="activity">Activity</option>
                                                 <option value="ingestion">CI/CD Gateways</option>
                                                 <option value="finops">FinOps Intelligence</option>
                                                 <option value="dora">DORA Metrics</option>
@@ -1871,6 +1912,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
-    <script type="module" src="app.js?v=1.0.82-suite-align"></script>
+    <script type="module" src="app.js?v=1.0.86-history-flow"></script>
 </body>
 </html>
