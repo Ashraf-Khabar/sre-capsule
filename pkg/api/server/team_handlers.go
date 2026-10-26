@@ -22,7 +22,7 @@ func registerTeamRoutes(config *core.Config) {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 
 		if r.Method == http.MethodGet {
 			rows, err := core.DB.Query("SELECT id, name, parent_id FROM teams")
@@ -230,7 +230,7 @@ func registerTeamRoutes(config *core.Config) {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 
 		if r.Method == http.MethodGet {
 			teamID := r.URL.Query().Get("team_id")

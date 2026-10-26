@@ -64,6 +64,10 @@ func RunPostIngestRemediation(config Config, projectName string, alert UnifiedAl
 
 	doc := LoadProjectWorkflow(projectName)
 	if integrations.IsWorkflowActive(doc) {
+		if allowedPluginPaths == nil {
+			allowedPluginPaths = map[string]bool{}
+		}
+		wctx.Allowed = allowedPluginPaths
 		docCopy := doc
 		integrations.RunRemediationAsync(func() {
 			// Detached context: HTTP request cancellation must not abort background remediation.
@@ -72,7 +76,7 @@ func RunPostIngestRemediation(config Config, projectName string, alert UnifiedAl
 		return
 	}
 
-		integrations.RunRemediationAsync(func() {
+	integrations.RunRemediationAsync(func() {
 		engine.EvaluateAlertRules(alert.Name, alert.Error, alert.ConsoleLogs, alert.Status, routing, allowedPluginPaths)
 	})
 }

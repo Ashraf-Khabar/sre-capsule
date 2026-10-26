@@ -1,6 +1,6 @@
 /**
 
- * FinOps Intelligence — Manager role only
+ * FinOps Intelligence - Manager role only
 
  */
 

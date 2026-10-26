@@ -1,5 +1,5 @@
 /**
- * Theme engine — modes (light/dark/system) and SRE color palettes.
+ * Theme engine - modes (light/dark/system) and SRE color palettes.
  */
 const THEME_STORAGE_KEY = 'sre-theme';
 const THEME_MODE_STORAGE_KEY = 'sre-theme-mode';

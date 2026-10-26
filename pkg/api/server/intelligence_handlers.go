@@ -140,6 +140,6 @@ func parseClaims(r *http.Request) *Claims {
 	authHeader := r.Header.Get("Authorization")
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 	claims := &Claims{}
-	_, _ = jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+	_, _ = jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 	return claims
 }

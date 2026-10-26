@@ -1,14 +1,14 @@
 {
-  "auto_run": true,
+  "auto_run": false,
   "config": {
     "DEPLOYMENT_NAME": "my-app",
     "K8S_NAMESPACE": "default"
   },
-  "description": "Rollout restart for a Kubernetes deployment (requires kubectl and cluster credentials on the host).",
+  "description": "Not executed. SRE Capsule does not call a cluster. Use a webhook to your GitOps controller if you need a restart.",
   "integration": "k8s",
   "name": "K8s Deployment Restart",
   "routing_enabled": false,
-  "status": "Active",
+  "status": "disabled",
   "trigger_on": [
     "CRITICAL",
     "OOM",

@@ -1,5 +1,5 @@
 /**
- * SRE Capsule chart colors — enterprise SRE palette (navy / slate, no AI neon).
+ * SRE Capsule chart colors - enterprise SRE palette (navy / slate, no AI neon).
  */
 import { cssVar } from './chart-theme.js';
 

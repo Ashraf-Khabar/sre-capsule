@@ -1,11 +1,11 @@
 /**
- * FinOps metrics theory — Documentation (detailed)
+ * FinOps metrics theory - Documentation (detailed)
  */
 import { formulaBlock } from './about-formula.js';
 
 export const FINOPS_METRICS_DOC_HTML = `
 <article class="about-doc about-doc-wide">
-  <h2>FinOps &amp; SRE metrics — theory and implementation</h2>
+  <h2>FinOps &amp; SRE metrics - theory and implementation</h2>
   <p class="about-lead">
     SRE Capsule models quality engineering as a <strong>stochastic cost process</strong>: every CI failure consumes runner minutes,
     every triage event consumes engineer attention (loaded hourly rate), and flaky tests amplify both through
@@ -14,7 +14,7 @@ export const FINOPS_METRICS_DOC_HTML = `
   </p>
 
   <div class="about-callout">
-    <strong>Design principle</strong> — Metrics are <em>conservative estimates</em>: we assume each recorded incident triggers
+    <strong>Design principle</strong> - Metrics are <em>conservative estimates</em>: we assume each recorded incident triggers
     one full pipeline duration (<em>T<sub>pipe</sub></em>) and one investigation window (<em>T<sub>inv</sub></em>), even when
     partial reruns occur. Tune baselines in <strong>FinOps Intelligence</strong> to match your organization.
   </div>
@@ -37,10 +37,10 @@ export const FINOPS_METRICS_DOC_HTML = `
   <h3>2. Incident population &amp; derived cardinalities</h3>
   <p>Let the incident table at evaluation time contain:</p>
   <ul class="about-detail-list">
-    <li><strong>N</strong> = <code>total_incidents</code> — cardinality of all ingested failure records.</li>
-    <li><strong>N<sub>f</sub></strong> = <code>flaky_tests</code> — subset where <code>name LIKE '[FLAKY]%'</code> (re-failure within 48h of prior resolution).</li>
-    <li><strong>N<sub>s</sub></strong> = <code>stable_failures</code> = N − N<sub>f</sub> — non-flaky structural regressions.</li>
-    <li><strong>N<sub>r</sub></strong> = <code>resolved_incidents</code> — <code>is_resolved = 1</code>.</li>
+    <li><strong>N</strong> = <code>total_incidents</code> - cardinality of all ingested failure records.</li>
+    <li><strong>N<sub>f</sub></strong> = <code>flaky_tests</code> - subset where <code>name LIKE '[FLAKY]%'</code> (re-failure within 48h of prior resolution).</li>
+    <li><strong>N<sub>s</sub></strong> = <code>stable_failures</code> = N − N<sub>f</sub> - non-flaky structural regressions.</li>
+    <li><strong>N<sub>r</sub></strong> = <code>resolved_incidents</code> - <code>is_resolved = 1</code>.</li>
     <li><strong>N<sub>a</sub></strong> = active backlog = N − N<sub>r</sub>.</li>
   </ul>
   ${formulaBlock('N_s = N - N_f')}
@@ -96,7 +96,7 @@ export const FINOPS_METRICS_DOC_HTML = `
     Pair with <code>flaky_ratio</code> in dashboard analytics for gateway-level attribution.
   </p>
 
-  <h3>7. MTTR — Mean Time To Resolution</h3>
+  <h3>7. MTTR - Mean Time To Resolution</h3>
   <p>
     MTTR is the arithmetic mean of resolution latency for resolved incidents, expressed in minutes:
   </p>
@@ -110,7 +110,7 @@ export const FINOPS_METRICS_DOC_HTML = `
     investigation. Compare week-over-week on the 5-week evolution chart alongside incident volume.
   </p>
 
-  <h3>8. MTTF — Mean Time To Failure</h3>
+  <h3>8. MTTF - Mean Time To Failure</h3>
   <p>
     MTTF approximates mean inter-arrival time between consecutive incident timestamps:
   </p>
@@ -125,12 +125,12 @@ export const FINOPS_METRICS_DOC_HTML = `
     (<code>date(created_at, 'weekday 0', '-6 days')</code>). Per bucket fields include:
   </p>
   <ul class="about-detail-list">
-    <li><code>incidents</code> — failure volume</li>
-    <li><code>flaky_count</code> — flaky-tagged volume</li>
-    <li><code>mttr</code> — mean resolution latency (minutes)</li>
-    <li><code>estimated_cost_usd</code> — Σ Impact_total for incidents in bucket</li>
-    <li><code>flaky_waste_cost_usd</code> — Σ Impact_flaky for incidents in bucket</li>
-    <li><code>ci_minutes</code> — runner minutes attributed to bucket</li>
+    <li><code>incidents</code> - failure volume</li>
+    <li><code>flaky_count</code> - flaky-tagged volume</li>
+    <li><code>mttr</code> - mean resolution latency (minutes)</li>
+    <li><code>estimated_cost_usd</code> - Σ Impact_total for incidents in bucket</li>
+    <li><code>flaky_waste_cost_usd</code> - Σ Impact_flaky for incidents in bucket</li>
+    <li><code>ci_minutes</code> - runner minutes attributed to bucket</li>
   </ul>
 
   <h3>10. Gateway export reports</h3>
@@ -140,7 +140,7 @@ export const FINOPS_METRICS_DOC_HTML = `
     Use this for chargeback conversations with service owners.
   </p>
 
-  <h3>11. Dashboard analytics — FinOps metric IDs</h3>
+  <h3>11. Dashboard analytics - FinOps metric IDs</h3>
   <p>When customizing Operations analytics tiles (Documentation → Dashboard analytics), these metric IDs map to the formulas above:</p>
   <table class="about-table">
     <thead><tr><th>METRIC</th><th>Aggregation</th></tr></thead>
@@ -148,8 +148,8 @@ export const FINOPS_METRICS_DOC_HTML = `
       <tr><td><code>finops_cost</code></td><td>Σ (incidents × C_incident) per bucket</td></tr>
       <tr><td><code>finops_flaky_cost</code></td><td>Σ (flaky × C_incident) per bucket</td></tr>
       <tr><td><code>ci_minutes</code></td><td>Σ (incidents × T_pipe) per bucket</td></tr>
-      <tr><td><code>ci_cost</code></td><td>Σ (incidents × T_pipe × C_ci) — CI slice only</td></tr>
-      <tr><td><code>invest_cost</code></td><td>Σ (incidents × C_invest) — human slice only</td></tr>
+      <tr><td><code>ci_cost</code></td><td>Σ (incidents × T_pipe × C_ci) - CI slice only</td></tr>
+      <tr><td><code>invest_cost</code></td><td>Σ (incidents × C_invest) - human slice only</td></tr>
       <tr><td><code>stable</code></td><td>Count of non-flaky failures</td></tr>
       <tr><td><code>active</code></td><td>Unresolved incident count</td></tr>
       <tr><td><code>resolution_rate</code></td><td>(resolved / total) × 100 per bucket</td></tr>
@@ -158,7 +158,7 @@ export const FINOPS_METRICS_DOC_HTML = `
   </table>
 
   <div class="about-callout">
-    <strong>Sensitivity analysis</strong> — Doubling T<sub>inv</sub> scales human cost linearly but does not affect CI minutes.
+    <strong>Sensitivity analysis</strong> - Doubling T<sub>inv</sub> scales human cost linearly but does not affect CI minutes.
     Doubling T<sub>pipe</sub> affects both Impact_total and MTTR-adjacent capacity planning. Use exports to justify
     investment in deflaking programs when WastePct exceeds your organizational threshold (commonly 15–25%).
   </div>

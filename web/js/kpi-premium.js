@@ -37,7 +37,7 @@ export function premiumKpiSkeleton(label, valueId, trendId, extraClass = '') {
     return `
         <article class="kpi-card-premium ${extraClass}">
             <span class="kpi-card-premium__label">${label}</span>
-            <span class="kpi-card-premium__value kpi-tone-neutral" id="${valueId}">—</span>
+            <span class="kpi-card-premium__value kpi-tone-neutral" id="${valueId}">-</span>
             <span class="kpi-card-premium__trend kpi-trend-up" id="${trendId}" hidden></span>
         </article>
     `;

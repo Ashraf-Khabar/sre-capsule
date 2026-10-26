@@ -82,7 +82,7 @@ func registerAuthRoutes(config *core.Config) {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 
 		if len(strings.TrimSpace(payload.NewPassword)) < 8 {
 			writeJSONError(w, "Password must be at least 8 characters", http.StatusBadRequest)
@@ -99,7 +99,7 @@ func registerAuthRoutes(config *core.Config) {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 
 		if r.Method == http.MethodGet {
 			if !core.CanManageIAM(claims.Role) && !core.CanManageTeams(claims.Role) {

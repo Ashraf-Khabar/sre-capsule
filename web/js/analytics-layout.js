@@ -1,5 +1,5 @@
 /**
- * Customizable "System analytics & quality" layout — metrics, charts, colors, positions.
+ * Customizable "System analytics & quality" layout - metrics, charts, colors, positions.
  */
 import { fetchWithAuth, parseApiJson } from './api.js';
 import { notify } from './ui.js';
@@ -55,7 +55,7 @@ export function getMetricDisplayValue(data, key) {
 }
 
 function metricValue(data, key) {
-    if (!data) return '—';
+    if (!data) return '-';
     const total = data.total_incidents ?? 0;
     const resolved = data.resolved_incidents ?? 0;
     const flaky = data.flaky_tests ?? 0;
@@ -69,7 +69,7 @@ function metricValue(data, key) {
         case 'flaky_ratio': return total > 0 ? `${Math.round((flaky / total) * 100)}%` : 'N/A';
         case 'mttr_minutes': return `${data.mttr_minutes ?? 0} min`;
         case 'mttf_minutes': return (data.mttf_minutes > 0) ? `${data.mttf_minutes} min` : 'N/A';
-        default: return '—';
+        default: return '-';
     }
 }
 
@@ -206,7 +206,7 @@ export function addAnalyticsWidgetFromForm() {
     };
     draftLayout.push(w);
     if (lastMetricsData) renderAnalyticsGrid(lastMetricsData, { isExport: false });
-    notify('Widget added — click Save layout to keep changes.', 'info');
+    notify('Widget added - click Save layout to keep changes.', 'info');
 }
 
 export function removeAnalyticsWidget(id) {

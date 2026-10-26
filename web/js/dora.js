@@ -31,7 +31,7 @@ function loadDORAProjectFilter() {
             const projects = Array.isArray(data) ? data : data?.projects || [];
             sel.innerHTML = '<option value="">All projects</option>';
             const maint = document.getElementById('maintenance-project');
-            if (maint) maint.innerHTML = '';
+            if (maint) maint.innerHTML = '<option value="">Select a gateway</option>';
             projects.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.name ?? p.Name ?? '';
@@ -52,8 +52,8 @@ export function refreshDORAMetrics() {
             if (!ok || !data?.metrics) return;
             const m = data.metrics;
             const cfr = m.change_failure_rate;
-            const cfrPct = cfr != null ? `${(cfr * 100).toFixed(1)}%` : '—';
-            const deployFreq = m.deployment_frequency_per_day?.toFixed(2) ?? '—';
+            const cfrPct = cfr != null ? `${(cfr * 100).toFixed(1)}%` : '-';
+            const deployFreq = m.deployment_frequency_per_day?.toFixed(2) ?? '-';
 
             setPremiumKpi('dora-kpi-deploy-freq', deployFreq, {
                 tone: 'info',
@@ -81,7 +81,7 @@ export function refreshDORAMetrics() {
                 trendText: mttr != null && mttr > 60 ? '↓ Recovery slow' : '↑ Healthy MTTR'
             });
 
-            setPremiumKpi('dora-kpi-deployments', String(m.deployments ?? '—'), {
+            setPremiumKpi('dora-kpi-deployments', String(m.deployments ?? '-'), {
                 tone: 'neutral',
                 trend: (m.deployments ?? 0) > 0 ? 'up' : '',
                 trendText: '↑ Pipeline activity'
@@ -106,7 +106,7 @@ export function refreshDORAMetrics() {
 }
 
 function formatMinutes(v) {
-    if (v == null || Number.isNaN(v)) return '—';
+    if (v == null || Number.isNaN(v)) return '-';
     if (v < 60) return `${Math.round(v)}m`;
     return `${(v / 60).toFixed(1)}h`;
 }
@@ -194,8 +194,8 @@ function renderErrorBudgets(rows) {
         }
     }
     tbody.innerHTML = rows.map(row => {
-        const left = row.status === 'quiet' ? '—' : `${Math.round((row.remaining_ratio || 0) * 100)}%`;
-        const burn = row.status === 'quiet' ? '—' : `${Number(row.burn_rate || 0).toFixed(1)}×`;
+        const left = row.status === 'quiet' ? '-' : `${Math.round((row.remaining_ratio || 0) * 100)}%`;
+        const burn = row.status === 'quiet' ? '-' : `${Number(row.burn_rate || 0).toFixed(1)}×`;
         const sloPct = Math.round((row.slo_failure_rate || 0.15) * 100);
         const project = escapeHtml(row.project || '').replace(/"/g, '&quot;');
         return `<tr>
@@ -221,12 +221,37 @@ async function refreshMaintenanceCard() {
     if (!list) return;
     const parsed = await parseApiJson(await fetchWithAuth('/api/maintenance'));
     const windows = parsed.ok && parsed.data && Array.isArray(parsed.data.windows) ? parsed.data.windows : [];
+    list.innerHTML = maintenanceWindowTable(windows, true);
+}
+
+function maintenanceUntil(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '-';
+    const parsed = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T') + 'Z');
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return parsed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+export function maintenanceWindowTable(windows, canEnd) {
     if (!windows.length) {
-        list.innerHTML = '<p class="dora-budget__hint">No gateway is in maintenance.</p>';
-        return;
+        return '<p class="maintenance-empty">No gateway is in maintenance.</p>';
     }
-    list.innerHTML = windows.map(row => `<div><strong>${escapeHtml(row.project || '')}</strong> until ${escapeHtml(row.ends_at || '')} — ${escapeHtml(row.reason || '')}
-        <button type="button" class="btn btn-secondary btn-sm" data-project="${encodeURIComponent(row.project || '')}" onclick="endMaintenance(this.dataset.project)">End</button></div>`).join('');
+    const rows = windows.map(row => {
+        const project = row.project || '';
+        const end = canEnd
+            ? `<button type="button" class="btn btn-secondary btn-sm" data-project="${encodeURIComponent(project)}" onclick="endMaintenance(this.dataset.project)">End</button>`
+            : '';
+        return `<tr>
+            <td>${escapeHtml(project)}</td>
+            <td>${escapeHtml(row.reason || '-')}</td>
+            <td>${escapeHtml(maintenanceUntil(row.ends_at))}</td>
+            <td>${end}</td>
+        </tr>`;
+    }).join('');
+    return `<table class="data-table maintenance-table">
+        <thead><tr><th>Gateway</th><th>Reason</th><th>Until</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
 }
 
 export async function startMaintenance(event) {

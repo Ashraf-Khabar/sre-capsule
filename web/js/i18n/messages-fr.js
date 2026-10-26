@@ -1,6 +1,6 @@
-/** French — keys used via data-i18n and t('key') */
+/** French - keys used via data-i18n and t('key') */
 export default {
-    'app.title': 'SRE Capsule — Plan de contrôle SRE',
+    'app.title': 'SRE Capsule - Plan de contrôle SRE',
     'common.save': 'Enregistrer les modifications',
     'common.reset': 'Réinitialiser la section',
     'common.cancel': 'Annuler',
@@ -39,6 +39,8 @@ export default {
     'nav.suite': 'Santé des suites',
     'nav.activity': 'Activité',
     'nav.unowned': 'Sans responsable',
+    'nav.section.workflow': 'WORKFLOW',
+    'nav.workflow': 'Workflow',
     'nav.dora': 'Tableau de bord DORA',
     'nav.finops': 'Intelligence FinOps',
     'nav.healing': 'Hub d\'auto-réparation',
@@ -75,6 +77,7 @@ export default {
     'account.tab.notifications': 'Notifications',
     'account.tab.security': 'Sécurité',
     'account.tab.data': 'Données et confidentialité',
+    'account.tab.docs': 'Documentation',
     'account.identity.title': 'Identité',
     'account.identity.desc': 'Affichage de votre nom dans le plan de contrôle et le contexte d\'audit.',
     'account.identity.displayName': 'Nom d\'affichage',
@@ -219,7 +222,7 @@ export default {
     'view.about.subtitle': 'La théorie SRE, et comment chaque pratique se fait dans SRE Capsule.',
 
     'notify.profileSaved': 'Profil enregistré',
-    'notify.profileReset': 'Formulaire réinitialisé aux valeurs par défaut — cliquez sur Enregistrer pour appliquer',
+    'notify.profileReset': 'Formulaire réinitialisé aux valeurs par défaut - cliquez sur Enregistrer pour appliquer',
     'notify.profileLoadError': 'Impossible de charger le profil',
     'notify.configApplied': 'Configuration appliquée',
     'notify.configApplyError': 'Échec de l\'application de la configuration',

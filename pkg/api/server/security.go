@@ -25,13 +25,22 @@ func parseBearerClaims(r *http.Request) (*Claims, error) {
 		return nil, fmt.Errorf("invalid authorization scheme")
 	}
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
+	token, err := jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 	if err != nil || token == nil || !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}
 	return claims, nil
+}
+
+// jwtSigningKey accepts only HMAC signatures. Other algorithms, including none, are rejected.
+func jwtSigningKey(token *jwt.Token) (interface{}, error) {
+	if token == nil || token.Method == nil {
+		return nil, fmt.Errorf("missing signing method")
+	}
+	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		return nil, fmt.Errorf("unexpected signing method")
+	}
+	return jwtKey, nil
 }
 
 // validateTokenString parses a raw JWT string (e.g. WebSocket ?token=).
@@ -41,9 +50,7 @@ func validateTokenString(tokenString string) (*Claims, error) {
 		return nil, fmt.Errorf("missing token")
 	}
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
+	token, err := jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 	if err != nil || token == nil || !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}

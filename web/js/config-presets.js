@@ -1,9 +1,9 @@
 /**
- * Named workspace configurations (SRE presets) — UI + API helpers.
+ * Named workspace configurations (SRE presets) - UI + API helpers.
  */
 import { fetchWithAuth, parseApiJson } from './api.js';
 import { notify } from './ui.js';
-import { t } from './i18n.js?v=1.0.63-docs';
+import { t } from './i18n.js?v=1.0.101-workflow-page';
 
 function escapeHtml(s) {
     return String(s ?? '')

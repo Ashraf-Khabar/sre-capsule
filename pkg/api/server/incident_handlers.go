@@ -25,7 +25,7 @@ func registerIncidentRoutes(config *core.Config) {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 
 		if r.Method == http.MethodGet {
 			projectFilter := r.URL.Query().Get("project")
@@ -358,7 +358,7 @@ func registerIncidentRoutes(config *core.Config) {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		metricsClaims := &Claims{}
-		jwt.ParseWithClaims(tokenString, metricsClaims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, metricsClaims, jwtSigningKey)
 
 		tw := incidentTimeWindowFromRequest(r)
 		fromT, _ := time.Parse("2006-01-02 15:04:05", tw.From)

@@ -4,7 +4,7 @@
  */
 import { fetchWithAuth, parseJwt, parseApiJson, asArray, describeApiFailure } from './api.js';
 import { notify, showConfirmModal, showPromptModal } from './ui.js';
-import { roleLabel, canManageTeams } from './roles.js';
+import { roleLabel, canManageTeams } from './roles.js?v=1.0.101-workflow-page';
 import { setupAutocomplete } from './autocomplete.js';
 
 export let allUsers = [];
@@ -303,7 +303,7 @@ export function loadOrgMembers(orgId) {
             }
             tbody.innerHTML = members.map(m => {
                 const inheritedTag = m.inherited
-                    ? '<span class="member-inherited-tag" title="Inherited from parent group — remove to opt out">inherited</span>'
+                    ? '<span class="member-inherited-tag" title="Inherited from parent group - remove to opt out">inherited</span>'
                     : '';
                 return `
                 <tr>
@@ -544,7 +544,7 @@ export function adminResetPassword(username) {
                 if (res.ok) notify("New password emailed", "success");
                 else {
                     const err = await res.json().catch(() => ({}));
-                    notify(err.error || "Reset failed — check domain policy", "error");
+                    notify(err.error || "Reset failed - check domain policy", "error");
                 }
             });
     });

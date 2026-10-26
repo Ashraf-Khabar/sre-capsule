@@ -80,7 +80,7 @@ func handleRunbookApply(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 	claims := &Claims{}
-	_, _ = jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+	_, _ = jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 	if !core.CanManageWorkflow(claims.Role) {
 		writeJSONError(w, "Runbook apply requires Lead, Manager, or Platform Admin", http.StatusForbidden)
 		return

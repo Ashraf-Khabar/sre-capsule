@@ -3,7 +3,7 @@
  */
 import { fetchWithAuth, parseApiJson, parseJwt } from './api.js';
 import { notify, showConfirmModal } from './ui.js';
-import { canManageWorkflow, normalizeRole } from './roles.js';
+import { canManageWorkflow, normalizeRole } from './roles.js?v=1.0.101-workflow-page';
 
 let editor = null;
 let currentProjectId = null;
@@ -40,9 +40,10 @@ const NODE_TEMPLATES = {
     },
     action: {
         html: `<div class="wf-node wf-action"><div class="wf-title">Action</div>
-            <select class="wf-action-path login-input" style="margin-top:6px;font-size:11px;width:100%;"><option value="">Select integration…</option></select></div>`,
+            <select class="wf-action-path login-input" style="margin-top:6px;font-size:11px;width:100%;"><option value="">Select integration…</option></select>
+            <div class="wf-desc">Output continues the graph</div></div>`,
         inputs: 1,
-        outputs: 0,
+        outputs: 1,
         data: { label: 'Action', nodeType: 'action', file_path: '', integration: '' }
     }
 };
@@ -50,11 +51,164 @@ const NODE_TEMPLATES = {
 /** Drawflow typenode: false = HTML template (required for custom node HTML). */
 const HTML_NODE = false;
 
+function mountWorkflowEditor() {
+    const slot = document.getElementById('workflow-page-slot');
+    const modal = document.getElementById('workflow-editor-modal');
+    if (slot && modal && modal.parentElement !== slot) slot.appendChild(modal);
+}
+
+let workflowGateways = [];
+
+const CI_LABELS = {
+    gitlab: 'GitLab CI',
+    github: 'GitHub Actions',
+    jenkins: 'Jenkins',
+    azure: 'Azure Pipelines',
+    circleci: 'CircleCI',
+    bitbucket: 'Bitbucket Pipelines',
+    teamcity: 'TeamCity',
+    travis: 'Travis CI',
+    buildkite: 'Buildkite',
+    cloudbuild: 'Cloud Build',
+    bamboo: 'Bamboo'
+};
+
+function workflowStatusKey(project) {
+    if (project.workflow_enabled) return 'active';
+    if (project.has_workflow) return 'draft';
+    return 'legacy';
+}
+
+function workflowStatusBadge(project) {
+    const key = workflowStatusKey(project);
+    const label = key === 'active' ? 'Active' : key === 'draft' ? 'Draft' : 'Legacy';
+    const title = key === 'active'
+        ? 'This graph is live for the gateway'
+        : key === 'draft'
+            ? 'Saved, but legacy AUTO-RUN still runs'
+            : 'No graph yet. Legacy AUTO-RUN still runs';
+    return `<span class="wf-table-badge ${key}" title="${title}">${label}</span>`;
+}
+
+function renderWorkflowTable() {
+    const tbody = document.getElementById('workflow-gateway-table');
+    if (!tbody) return;
+    const query = (document.getElementById('workflow-filter-search')?.value || '').trim().toLowerCase();
+    const status = document.getElementById('workflow-filter-status')?.value || '';
+    const rows = workflowGateways.filter((project) => {
+        const name = String(project.name || project.id || '').toLowerCase();
+        if (query && !name.includes(query)) return false;
+        if (status && workflowStatusKey(project) !== status) return false;
+        return true;
+    });
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="table-empty">No gateways match these filters.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map((project) => {
+        const id = escapeAttr(project.id);
+        const name = escapeHtml(project.name || project.id);
+        const ci = escapeHtml(CI_LABELS[project.ci_system] || project.ci_system || '');
+        return `<tr>
+            <td><strong>${name}</strong></td>
+            <td>${ci}</td>
+            <td>${workflowStatusBadge(project)}</td>
+            <td class="data-table__actions">
+                <button type="button" class="btn btn-secondary btn-sm btn-open-workflow-page" data-project-id="${id}" data-project-name="${name}">Open workflow</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function bindWorkflowTable() {
+    const tbody = document.getElementById('workflow-gateway-table');
+    const search = document.getElementById('workflow-filter-search');
+    const status = document.getElementById('workflow-filter-status');
+    if (search && !search.dataset.bound) {
+        search.dataset.bound = '1';
+        search.addEventListener('input', renderWorkflowTable);
+    }
+    if (status && !status.dataset.bound) {
+        status.dataset.bound = '1';
+        status.addEventListener('change', renderWorkflowTable);
+    }
+    if (tbody && !tbody.dataset.bound) {
+        tbody.dataset.bound = '1';
+        tbody.addEventListener('click', (event) => {
+            const button = event.target.closest('.btn-open-workflow-page');
+            if (!button) return;
+            openWorkflowFromList(button.dataset.projectId, button.dataset.projectName);
+        });
+    }
+}
+
+function showWorkflowEditorHost() {
+    const list = document.getElementById('workflow-list-panel');
+    const host = document.getElementById('workflow-editor-host');
+    if (list) list.hidden = true;
+    if (host) host.hidden = false;
+}
+
+export function showWorkflowList() {
+    closeWorkflowEditor();
+    const list = document.getElementById('workflow-list-panel');
+    const host = document.getElementById('workflow-editor-host');
+    if (list) list.hidden = false;
+    if (host) host.hidden = true;
+    renderWorkflowTable();
+}
+
+function openWorkflowFromList(projectId, projectName) {
+    if (!projectId) return;
+    showWorkflowEditorHost();
+    openWorkflowEditor(projectId, projectName);
+}
+
+export async function loadWorkflowPage() {
+    mountWorkflowEditor();
+    bindWorkflowTable();
+    const pending = String(window.__pendingWorkflowGateway || '');
+    window.__pendingWorkflowGateway = '';
+    try {
+        const res = await fetchWithAuth('/api/my-projects');
+        const { ok, data } = await parseApiJson(res);
+        workflowGateways = ok && Array.isArray(data) ? data : [];
+    } catch (err) {
+        console.error('[workflow] gateway list failed', err);
+        notify('Could not load CI/CD gateways.', 'error');
+        workflowGateways = [];
+    }
+    renderWorkflowTable();
+    if (pending && editor && String(currentProjectId) === pending) {
+        showWorkflowEditorHost();
+        return;
+    }
+    const pendingProject = workflowGateways.find((project) => String(project.id) === pending);
+    if (pendingProject) {
+        openWorkflowFromList(pendingProject.id, pendingProject.name || pendingProject.id);
+        return;
+    }
+    showWorkflowList();
+}
+
+export function toggleWorkflowTester() {
+    const view = document.getElementById('view-workflow');
+    if (!view) return;
+    view.classList.toggle('workflow-tester-collapsed');
+    const collapsed = view.classList.contains('workflow-tester-collapsed');
+    const button = document.getElementById('workflow-tester-toggle');
+    if (button) button.textContent = collapsed ? 'Show tester' : 'Hide tester';
+    const panel = document.getElementById('workflow-help-panel');
+    if (panel) panel.classList.toggle('open', !collapsed);
+    refreshDrawflowViewport();
+}
+
 export function openWorkflowEditor(projectId, projectName) {
     if (!projectId) {
         notify('Invalid project id.', 'error');
         return;
     }
+    mountWorkflowEditor();
     currentProjectId = projectId;
     const modal = document.getElementById('workflow-editor-modal');
     if (!modal) {
@@ -63,10 +217,12 @@ export function openWorkflowEditor(projectId, projectName) {
     }
     const titleEl = document.getElementById('workflow-editor-title');
     if (titleEl) {
-        titleEl.textContent = `Visual Workflow — ${projectName || projectId}`;
+        titleEl.textContent = `Visual Workflow - ${projectName || projectId}`;
     }
+    const empty = document.getElementById('workflow-page-empty');
+    if (empty) empty.hidden = true;
     modal.style.display = 'flex';
-    document.body.classList.add('workflow-modal-open');
+    document.body.classList.remove('workflow-modal-open');
     bindWorkflowToolbar();
     bindWorkflowModalKeys();
     requestAnimationFrame(() => {
@@ -103,18 +259,12 @@ function bindWorkflowModalKeys() {
     document.addEventListener('keydown', (e) => {
         const modal = document.getElementById('workflow-editor-modal');
         if (!modal || modal.style.display === 'none') return;
+        if (e.key === 'Escape' && modal.closest('#workflow-page-slot')) return;
         if (e.key === 'Escape') {
             e.preventDefault();
             closeWorkflowEditor();
         }
     });
-    const modal = document.getElementById('workflow-editor-modal');
-    if (modal && !modal.dataset.backdropBound) {
-        modal.dataset.backdropBound = '1';
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeWorkflowEditor();
-        });
-    }
 }
 function destroyDrawflowEditor() {
     const container = document.getElementById('drawflow');
@@ -140,7 +290,7 @@ function initDrawflow() {
     editor.reroute_fix_curvature = true;
     editor.curvature = 0.45;
     editor.zoom_max = 1.6;
-    editor.zoom_min = 0.4;
+    editor.zoom_min = 0.15;
     editor.editor_mode = canEditWorkflow ? 'edit' : 'fixed';
     editor.start();
     bindDrawflowEvents();
@@ -268,11 +418,11 @@ export function updateWorkflowStatusPill() {
     } else if (hasGraph || hasStored) {
         pill.textContent = 'Draft';
         pill.classList.add('state-draft');
-        pill.title = 'Workflow saved but disabled — legacy AUTO-RUN still applies';
+        pill.title = 'Workflow saved but disabled - legacy AUTO-RUN still applies';
     } else {
         pill.textContent = 'Legacy';
         pill.classList.add('state-legacy');
-        pill.title = 'No visual workflow — legacy AUTO-RUN and trigger_on rules';
+        pill.title = 'No visual workflow - legacy AUTO-RUN and trigger_on rules';
     }
 }
 
@@ -464,10 +614,14 @@ const CONDITION_MATCH_OPTIONS = {
     ],
     error: [
         { value: 'contains', label: 'Contains' },
+        { value: 'not_contains', label: 'Does not contain' },
+        { value: 'prefix', label: 'Starts with' },
         { value: 'equals', label: 'Equals' }
     ],
     console: [
         { value: 'contains', label: 'Contains' },
+        { value: 'not_contains', label: 'Does not contain' },
+        { value: 'prefix', label: 'Starts with' },
         { value: 'equals', label: 'Equals' }
     ]
 };
@@ -716,9 +870,9 @@ export async function saveWorkflow() {
     canonicalWorkflow = doc;
     updateWorkflowStatusPill();
     if (enabled) {
-        notify('Workflow saved and enabled — DAG is active for this pipeline.', 'success');
+        notify('Workflow saved and enabled - DAG is active for this pipeline.', 'success');
     } else {
-        notify('Workflow saved as draft — legacy AUTO-RUN remains active.', 'success');
+        notify('Workflow saved as draft - legacy AUTO-RUN remains active.', 'success');
     }
     if (typeof window.loadGatewaysData === 'function') {
         window.loadGatewaysData();
@@ -736,7 +890,7 @@ export async function clearWorkflow() {
                 method: 'DELETE'
             });
             if (res.ok) {
-                notify('Workflow cleared — legacy AUTO-RUN restored.', 'success');
+                notify('Workflow cleared - legacy AUTO-RUN restored.', 'success');
                 canonicalWorkflow = null;
                 const toggle = document.getElementById('workflow-enabled-toggle');
                 if (toggle) toggle.checked = false;
@@ -854,7 +1008,7 @@ export async function simulateWorkflow() {
         out.textContent = lines.join('\n');
         out.classList.add('visible');
     }
-    notify('Simulation complete — see panel below canvas.', 'success');
+    notify('Simulation complete - see panel below canvas.', 'success');
 }
 
 export function loadFlakyExampleWorkflow() {
@@ -884,5 +1038,5 @@ export function loadFlakyExampleWorkflow() {
     scheduleSyncControlsFromNodeData();
     updateCanvasEmptyState();
     refreshDrawflowViewport();
-    notify('Flaky example loaded — true→Slack, false→Jira.', 'success');
+    notify('Flaky example loaded - true→Slack, false→Jira.', 'success');
 }

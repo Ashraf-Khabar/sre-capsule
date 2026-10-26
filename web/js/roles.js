@@ -1,5 +1,5 @@
 /**
- * Global RBAC — mirrors pkg/core/rbac.go
+ * Global RBAC - mirrors pkg/core/rbac.go
  */
 export const ROLE_LEVEL = { observer: 1, lead: 2, manager: 3, admin: 4 };
 
@@ -67,7 +67,8 @@ export function canManageProjects(role) {
 }
 
 export function canManageWorkflow(role) {
-    return hasMinRole(role, 'lead');
+    const normalized = normalizeRole(role);
+    return normalized === 'lead' || normalized === 'manager';
 }
 
 export function canViewHealing(role) {
@@ -175,11 +176,13 @@ export function canAccessView(role, viewId) {
         case 'dashboard':
         case 'suite':
         case 'activity':
+        case 'activity-detail':
         case 'unowned':
         case 'unified-report':
             return canAccessOperations(role);
         case 'about':
         case 'profile':
+        case 'workflow':
             return true;
         case 'finops':
             return canAccessFinOps(role);
@@ -221,7 +224,8 @@ export function accessDeniedMessage(viewId) {
         rca: 'Self-Healing Hub',
         'ai-config': 'AI Configuration',
         'ai-usage': 'AI status',
-        dora: 'DORA Dashboard'
+        dora: 'DORA Dashboard',
+        workflow: 'Workflow'
     };
     const name = labels[viewId] || viewId;
     return `You do not have access to ${name}.`;

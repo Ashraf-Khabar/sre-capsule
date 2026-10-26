@@ -25,7 +25,7 @@ func registerProjectRoutes(config *core.Config) {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 
 		var rows *sql.Rows
 		var err error
@@ -96,7 +96,7 @@ func registerProjectRoutes(config *core.Config) {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 
 		if r.Method != http.MethodGet && !core.CanManageProjects(claims.Role) {
 			http.Error(w, "Admin or Operator access required", http.StatusForbidden)

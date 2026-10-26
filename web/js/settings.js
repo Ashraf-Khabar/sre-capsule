@@ -4,7 +4,7 @@
  */
 import { fetchWithAuth, parseJwt, parseApiJson, asArray, describeApiFailure, performLogout } from './api.js';
 import { notify, showConfirmModal, showPromptModal } from './ui.js';
-import { canManagePluginAutoRun } from './roles.js';
+import { canManagePluginAutoRun } from './roles.js?v=1.0.101-workflow-page';
 import * as analyticsLayout from './analytics-layout.js';
 import { applyChartThemeDefaults, getChartTheme } from './chart-theme.js';
 import { AI_PROVIDERS, logoForProvider, getProviderMeta } from './ai-provider-icons.js';
@@ -99,35 +99,60 @@ export function selectCI(ciName, element) {
     }
 }
 
-function workflowTableBadge(project) {
-    if (project.workflow_enabled) {
-        return '<span class="wf-table-badge active" title="DAG drives remediation">Active</span>';
+let gatewayTableClickBound = false;
+let gatewayFiltersBound = false;
+
+function bindGatewayFilters() {
+    const search = document.getElementById('gateway-filter-search');
+    const ci = document.getElementById('gateway-filter-ci');
+    if (gatewayFiltersBound) return;
+    gatewayFiltersBound = true;
+    if (ci) {
+        ci.innerHTML = '<option value="">All CI systems</option>' + CI_SYSTEMS.map((item) =>
+            `<option value="${item.id}">${item.label}</option>`
+        ).join('');
     }
-    if (project.has_workflow) {
-        return '<span class="wf-table-badge draft" title="Saved draft — legacy AUTO-RUN">Draft</span>';
-    }
-    return '<span class="wf-table-badge legacy" title="Legacy AUTO-RUN">Legacy</span>';
+    if (search) search.addEventListener('input', renderGatewayTable);
+    if (ci) ci.addEventListener('change', renderGatewayTable);
 }
 
-let gatewayTableClickBound = false;
+function renderGatewayTable() {
+    const tbody = document.getElementById('projects-table-body');
+    if (!tbody) return;
+    const query = (document.getElementById('gateway-filter-search')?.value || '').trim().toLowerCase();
+    const ci = document.getElementById('gateway-filter-ci')?.value || '';
+    const rows = allProjects.filter((project) => {
+        const name = String(project.name || '').toLowerCase();
+        if (query && !name.includes(query)) return false;
+        if (ci && project.ci_system !== ci) return false;
+        return true;
+    });
+    if (!allProjects.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="table-empty">No pipelines provisioned yet.</td></tr>';
+        return;
+    }
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="table-empty">No gateways match these filters.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(p => `
+                <tr>
+                    <td><strong>${escapePluginHtml(p.name)}</strong></td>
+                    <td class="ci-system-cell">${ciSystemCell(p.ci_system)}</td>
+                    <td><code class="secret-mask">••••••••••••</code></td>
+                    <td class="data-table__actions">
+                        <button type="button" class="btn btn-secondary btn-sm btn-info btn-edit-project" data-project-id="${escapePluginHtml(String(p.id))}">EDIT</button>
+                        <button type="button" class="btn btn-secondary btn-sm btn-danger btn-delete-project" data-project-id="${escapePluginHtml(String(p.id))}">DELETE</button>
+                    </td>
+                </tr>
+            `).join('');
+}
 
 function bindGatewayTableClicks() {
     const tbody = document.getElementById('projects-table-body');
     if (!tbody || gatewayTableClickBound) return;
     gatewayTableClickBound = true;
     tbody.addEventListener('click', (e) => {
-        const wfBtn = e.target.closest('.btn-open-workflow');
-        if (wfBtn) {
-            e.preventDefault();
-            const projectId = wfBtn.getAttribute('data-project-id');
-            const projectName = wfBtn.getAttribute('data-project-name') || projectId;
-            if (typeof window.openWorkflowEditor === 'function') {
-                window.openWorkflowEditor(projectId, projectName);
-            } else {
-                notify('Workflow editor not loaded. Hard-refresh the page (Ctrl+F5).', 'error');
-            }
-            return;
-        }
         const editBtn = e.target.closest('.btn-edit-project');
         if (editBtn) {
             e.preventDefault();
@@ -152,6 +177,7 @@ export function loadGatewaysData() {
     renderCICards();
     bindSRERoutingControls();
     bindGatewayTableClicks();
+    bindGatewayFilters();
     const tbody = document.getElementById('projects-table-body');
     fetchWithAuth(`/api/my-projects?_ts=${Date.now()}`)
         .then(res => parseApiJson(res))
@@ -159,29 +185,13 @@ export function loadGatewaysData() {
             allProjects = ok ? asArray(data) : [];
             if (!tbody) return;
             if (!ok) {
-                tbody.innerHTML = '<tr><td colspan="5"><span class="load-error-msg">Unable to load gateways.</span></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4"><span class="load-error-msg">Unable to load gateways.</span></td></tr>';
                 return;
             }
-            if (allProjects.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="table-empty">No pipelines provisioned yet.</td></tr>';
-                return;
-            }
-            tbody.innerHTML = allProjects.map(p => `
-                <tr>
-                    <td><strong>${escapePluginHtml(p.name)}</strong></td>
-                    <td class="ci-system-cell">${ciSystemCell(p.ci_system)}</td>
-                    <td><code class="secret-mask">••••••••••••</code></td>
-                    <td>${workflowTableBadge(p)}</td>
-                    <td class="data-table__actions">
-                        <button type="button" class="btn btn-secondary btn-sm btn-open-workflow gateway-actions__workflow" data-project-id="${escapePluginHtml(String(p.id))}" data-project-name="${escapePluginHtml(p.name)}" title="Visual remediation DAG">WORKFLOW</button>
-                        <button type="button" class="btn btn-secondary btn-sm btn-info btn-edit-project" data-project-id="${escapePluginHtml(String(p.id))}">EDIT</button>
-                        <button type="button" class="btn btn-secondary btn-sm btn-danger btn-delete-project" data-project-id="${escapePluginHtml(String(p.id))}">DELETE</button>
-                    </td>
-                </tr>
-            `).join('');
+            renderGatewayTable();
         })
         .catch(() => {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="5"><span class="load-error-msg">Unable to load gateways.</span></td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="4"><span class="load-error-msg">Unable to load gateways.</span></td></tr>';
         });
 
     loadActivePluginsForRouting();
@@ -461,7 +471,7 @@ function pdfDrawHeader(doc, { logoData, titleScope, rangeLabel }) {
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('SRE Capsule — Flight Recorder', textX, 14);
+    doc.text('SRE Capsule - Flight Recorder', textX, 14);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
@@ -1000,7 +1010,7 @@ export function togglePluginAutoRun(filePath, enable) {
         body: JSON.stringify({ file_path: filePath, auto_run: enable })
     }).then(res => parseApiJson(res)).then(({ ok }) => {
         if (ok) {
-            notify(enable ? 'AUTO-RUN enabled for this integration.' : 'AUTO-RUN disabled — webhooks will not trigger it.', 'success');
+            notify(enable ? 'AUTO-RUN enabled for this integration.' : 'AUTO-RUN disabled - webhooks will not trigger it.', 'success');
             loadPlugins();
             loadGatewaysData();
         } else notify('Failed to update AUTO-RUN.', 'error');
@@ -1237,7 +1247,7 @@ export function loadPlugins() {
             const category = document.getElementById('plugin-category-filter')?.value || 'all';
             renderPluginList(window.__pluginsCache, query, category);
             if (window.__pluginsCache.length === 0 && meta) {
-                meta.textContent = 'No modules in registry — check plugins/ folder and server logs (remediation registry loaded).';
+                meta.textContent = 'No modules in registry - check plugins/ folder and server logs (remediation registry loaded).';
             }
         })
         .catch(() => {
@@ -1288,7 +1298,7 @@ export function runPlugin(path, idx) {
         btn.disabled = false;
         btn.style.opacity = '1';
         if (failed) {
-            notify('Plugin execution failed — see console output.', 'error');
+            notify('Plugin execution failed - see console output.', 'error');
             logsEl.className = 'plugin-console plugin-console--error';
         } else {
             notify('Plugin executed successfully.', 'success');
@@ -1456,7 +1466,7 @@ export async function loadAIConfig() {
         _populateModelSelect(_selectedAIProvider, data.model);
         setVal('ai-base-url', data.base_url);
         setVal('ai-key-env', data.api_key_env);
-        // Never pre-fill the key input — only indicate whether a key is already stored
+        // Never pre-fill the key input - only indicate whether a key is already stored
         const apiKeyInput = document.getElementById('ai-api-key');
         if (apiKeyInput) apiKeyInput.value = '';
         const maxTok = document.getElementById('ai-max-tokens');
@@ -1478,8 +1488,8 @@ export async function loadAIConfig() {
         }
         // KPI cards
         const setKpi = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-        setKpi('ai-kpi-provider', data.provider && data.provider !== 'disabled' ? data.provider : '—');
-        setKpi('ai-kpi-model', data.model || '—');
+        setKpi('ai-kpi-provider', data.provider && data.provider !== 'disabled' ? data.provider : '-');
+        setKpi('ai-kpi-model', data.model || '-');
         setKpi('ai-kpi-apikey', data.api_key_set ? 'Set' : 'Missing');
         const apiKpiEl = document.getElementById('ai-kpi-apikey');
         if (apiKpiEl) apiKpiEl.style.color = data.api_key_set ? 'var(--success-text)' : 'var(--warn-text)';
@@ -1555,7 +1565,7 @@ function _populateModelSelect(providerId, currentModel) {
     const models = meta.models || [];
 
     if (models.length === 0) {
-        // Provider like Disabled or unknown — show only custom input
+        // Provider like Disabled or unknown - show only custom input
         sel.innerHTML = '<option value="__custom__">Custom model…</option>';
         if (customRow) customRow.classList.add('visible');
         if (customInput) customInput.value = currentModel || '';
@@ -1625,14 +1635,14 @@ export async function loadAIUsageView() {
     const res = await fetchWithAuth('/api/ai/status');
     const { ok, data } = await parseApiJson(res);
     const badge = document.getElementById('ai-usage-status-badge');
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v || '—'; };
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v || '-'; };
     if (ok && data) {
         if (badge) {
             badge.textContent = data.enabled ? `${data.provider || 'AI'} on` : 'AI off';
             badge.className = 'intel-badge ' + (data.enabled ? 'intel-badge--on' : 'intel-badge--manual');
         }
         set('ai-usage-provider', data.provider || 'disabled');
-        set('ai-usage-model', data.model || '—');
+        set('ai-usage-model', data.model || '-');
         set('ai-usage-enabled', data.enabled ? 'Yes' : 'No');
     } else if (badge) {
         badge.textContent = 'AI off';

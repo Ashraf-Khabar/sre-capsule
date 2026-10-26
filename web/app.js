@@ -6,23 +6,23 @@
 // IMPORT MODULES
 import { notify, showConfirmModal, showPromptModal, closeModal, toggleTheme, initSidebar, toggleSidebar } from './js/ui.js';
 import { parseJwt, performLogout, showLoginScreen, fetchWithAuth, parseApiJson, isApiOffline, pingApiServer, resetApiOfflineBanner } from './js/api.js';
-import * as iam from './js/iam.js';
-import * as settings from './js/settings.js?v=1.0.89-status-case';
-import * as profile from './js/profile.js?v=1.0.63-docs';
+import * as iam from './js/iam.js?v=1.0.101-workflow-page';
+import * as settings from './js/settings.js?v=1.0.102-workflow-table';
+import * as profile from './js/profile.js?v=1.0.101-workflow-page';
 import * as finops from './js/finops.js';
-import * as about from './js/about.js?v=1.0.63-docs';
+import * as about from './js/about.js?v=1.0.102-workflow-table';
 import * as analyticsLayout from './js/analytics-layout.js';
-import { applyRoleVisibility, canAccessFinOps, canAccessPlugins, canResolveIncidents, canDeleteIncidents, hasMinRole, roleLabel, canManageTeams, canManageIAM, isAdmin, canAccessView, accessDeniedMessage, defaultViewForRole, canPatchExecutionFlags } from './js/roles.js';
-import * as executionHub from './js/execution-hub.js';
-import * as reportViewer from './js/report-viewer.js?v=1.0.89-status-case';
-import * as workflowEditor from './js/workflow-editor.js?v=1.0.89-status-case';
-import * as healing from './js/healing.js?v=1.0.83-specs';
-import * as dora from './js/dora.js?v=1.0.62-maint';
+import { applyRoleVisibility, canAccessFinOps, canAccessPlugins, canResolveIncidents, canDeleteIncidents, hasMinRole, roleLabel, canManageTeams, canManageIAM, isAdmin, canAccessView, accessDeniedMessage, defaultViewForRole, canPatchExecutionFlags } from './js/roles.js?v=1.0.101-workflow-page';
+import * as executionHub from './js/execution-hub.js?v=1.0.101-workflow-page';
+import * as reportViewer from './js/report-viewer.js?v=1.0.99-maint';
+import * as workflowEditor from './js/workflow-editor.js?v=1.0.103-open-workflow';
+import * as healing from './js/healing.js?v=1.0.101-workflow-page';
+import * as dora from './js/dora.js?v=1.0.99-maint';
 import { setupAutocomplete } from './js/autocomplete.js';
 import { initTheme, applyTheme } from './js/ui.js';
-import { initI18n, t, setLocale, applyI18n } from './js/i18n.js?v=1.0.88-unowned';
+import { initI18n, t, setLocale, applyI18n } from './js/i18n.js?v=1.0.101-workflow-page';
 import { initCommentUI, openResolveComposer, hydrateOpenComments } from './js/comments.js?v=1.0.40-edit-fill';
-import { publishSecureLink, secureLinkTokenFromPath } from './js/links.js';
+import { publishSecureLink, secureLinkTokenFromPath } from './js/links.js?v=1.0.101-workflow-page';
 
 // EXPORT GLOBALLY FOR HTML INLINE HANDLERS
 Object.assign(window, { notify, showConfirmModal, showPromptModal, closeModal, toggleTheme, initSidebar, toggleSidebar, parseJwt, performLogout, fetchWithAuth, applyTheme, t, setLocale, applyI18n, openResolveComposer, hydrateOpenComments, publishSecureLink });
@@ -567,7 +567,7 @@ window.refreshDashboard = function () {
     return Promise.resolve(window.fetchIncidents(true)).then(() => window.syncDashboardKpis());
 };
 
-function renderDeployLink(group, userRole) {
+function renderDeployLink(group) {
     const inc = (group.incidents || []).find(item => item && item.deploy);
     const deploy = inc && inc.deploy;
     if (!deploy || !deploy.run_id) return '';
@@ -581,16 +581,8 @@ function renderDeployLink(group, userRole) {
         const rounded = Math.max(0, Math.round(mins));
         when = rounded <= 1 ? 'with this incident' : `${rounded} min before this incident`;
     }
-    const workflow = deploy.close && deploy.project_id && canAccessPlugins(userRole)
-        ? `<button type="button" class="btn btn-secondary btn-sm" data-project-id="${escapeHtml(deploy.project_id)}" data-project-name="${escapeHtml(group.project_name || '')}" onclick="openDeployWorkflow(this)">Open workflow</button>`
-        : '';
-    return `<div class="deploy-link${deploy.close ? ' deploy-link--close' : ''}"><span>Deploy ${escapeHtml(label)}${branch}${outcome} · ${when}</span>${workflow}</div>`;
+    return `<div class="deploy-link${deploy.close ? ' deploy-link--close' : ''}"><span>Deploy ${escapeHtml(label)}${branch}${outcome} · ${when}</span></div>`;
 }
-
-window.openDeployWorkflow = function (button) {
-    if (!button || typeof window.openWorkflowEditor !== 'function') return;
-    window.openWorkflowEditor(button.dataset.projectId || '', button.dataset.projectName || '');
-};
 
 function escapeHtml(s) {
     return String(s ?? '')
@@ -860,7 +852,7 @@ window.schedulePostIngestRefresh = function (alertsQueued) {
             run();
         }, delay);
     };
-    notify('CI ingest queued — refreshing dashboard…', 'success');
+    notify('CI ingest queued - refreshing dashboard…', 'success');
     run();
 };
 
@@ -1005,7 +997,7 @@ window.fetchIncidents = function (forceRender = false, opts = {}) {
             if (listEl) {
                 const detail = err && err.message ? escapeHtml(err.message) : '';
                 const hint = detail.includes('displayExecutionEnv')
-                    ? 'Dashboard render bug — hard-refresh the page (Ctrl+Shift+R).'
+                    ? 'Dashboard render bug - hard-refresh the page (Ctrl+Shift+R).'
                     : 'Check that the server is running, sign in again if needed, then refresh.';
                 listEl.innerHTML = `<div class="load-error-msg">Unable to load incidents. ${hint}${detail ? `<br><span class="form-hint">${detail}</span>` : ''}</div>`;
             }
@@ -1083,12 +1075,12 @@ function incidentOpsHTML(inc, canAct) {
     let actions = '';
     if (canAct && !normalizeIsResolved(inc)) {
         if (!inc.acknowledged_at) {
-            actions += `<label class="ops-sev">Severity
-                <select id="sev-${inc.id}">
-                    <option value="sev1">sev1</option>
-                    <option value="sev2">sev2</option>
-                    <option value="sev3" selected>sev3</option>
-                    <option value="sev4">sev4</option>
+            actions += `<label class="ops-sev"><span>Severity</span>
+                <select id="sev-${inc.id}" aria-label="Severity">
+                    <option value="sev1">Sev 1</option>
+                    <option value="sev2">Sev 2</option>
+                    <option value="sev3" selected>Sev 3</option>
+                    <option value="sev4">Sev 4</option>
                 </select></label>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="ackIncident(${Number(inc.id)})">Acknowledge</button>`;
         }
@@ -1106,7 +1098,10 @@ function incidentOpsHTML(inc, canAct) {
            <textarea class="ops-postmortem-edit" id="pm-edit-${inc.id}">${escapeHtml(inc.postmortem)}</textarea>
            <button type="button" class="btn btn-secondary btn-sm" onclick="savePostmortem(${Number(inc.id)})">Save draft</button>`
         : '';
-    return `<div class="incident-ops">${maint}${waiting}${signals}${prior}<p class="ops-timeline">${escapeHtml(bits.join(' · '))}</p><div class="ops-actions">${actions}</div>${runbook}${draft}</div>`;
+    const actionPanel = actions
+        ? `<section class="ops-action-panel" aria-label="Incident response"><h4 class="ops-action-panel__title">Response</h4><div class="ops-actions">${actions}</div></section>`
+        : '';
+    return `<div class="incident-ops">${maint}${waiting}${signals}${prior}<p class="ops-timeline">${escapeHtml(bits.join(' · '))}</p></div>${actionPanel}${runbook}${draft}`;
 }
 
 function priorCauseHTML(inc) {
@@ -1276,7 +1271,7 @@ function renderSuiteBoard() {
             <td title="${escapeHtml(last.run_id || '')}">${escapeHtml(shortRunId(last.run_id))}</td>
             <td><span class="budget-status ${failed ? 'budget-status--freeze' : 'budget-status--healthy'}">${failed}</span> / ${Number(last.total) || 0}</td>
             <td>${formatSuiteDuration(last.duration_ms)}</td>
-            <td>${escapeHtml(last.branch || '—')}</td>
+            <td>${escapeHtml(last.branch || '-')}</td>
             <td class="budget-status ${statusClass[versus.tone] || 'budget-status--quiet'}">${escapeHtml(versus.text)}</td>
         </tr>`;
     }).join('');
@@ -1410,44 +1405,68 @@ function fillActivityProjects() {
     if (names.includes(current)) sel.value = current;
 }
 
-function renderActivityDetail(group) {
-    const box = document.getElementById('activity-detail');
-    const hint = document.getElementById('activity-detail-hint');
-    if (!box) return;
-    if (!group) {
-        box.hidden = true;
-        box.innerHTML = '';
-        if (hint) hint.hidden = false;
-        return;
-    }
-    if (hint) hint.hidden = true;
+function activityDetailHTML(group) {
     const incidents = [...group.incidents].sort((a, b) => {
         const last = item => String((item.events || [])[item.events.length - 1]?.at || '');
         return last(b).localeCompare(last(a)) || (Number(b.id) - Number(a.id));
     });
-    box.hidden = false;
-    box.innerHTML = incidents.map(item => {
+    return incidents.map(item => {
         const meta = [item.status, item.severity, item.archived ? 'Archived' : ''].filter(Boolean).map(escapeHtml).join(' · ');
         const steps = (item.events || []).map(ev => {
             const label = HISTORY_KIND[ev.kind] || ev.kind || 'Action';
             const who = ev.actor ? `<span class="activity-who">${escapeHtml(ev.actor)}</span>` : '';
-            const text = ev.text ? `<p>${escapeHtml(ev.text)}</p>` : '';
-            return `<li>
-                <div class="activity-step-meta">
+            const text = ev.text ? escapeHtml(ev.text) : 'No extra detail.';
+            return `<details class="ur-test-block" open>
+                <summary class="ur-test-summary">
                     <strong class="kpi-tone-${activityKindTone(ev.kind)}">${escapeHtml(label)}</strong>
-                    <time>${escapeHtml(ev.at || '')}</time>
+                    <time class="ur-test-duration">${escapeHtml(ev.at || '')}</time>
                     ${who}
-                </div>
-                ${text}
-            </li>`;
+                </summary>
+                <p class="activity-step-body">${text}</p>
+            </details>`;
         }).join('');
-        return `<section class="data-card">
-            <h3 class="activity-incident-title">#${Number(item.id)} · ${escapeHtml(item.name || group.suite)}</h3>
-            ${meta ? `<p class="dora-budget__hint">${meta}</p>` : ''}
-            <ol class="activity-steps">${steps}</ol>
-        </section>`;
+        return `<details class="ur-suite-block" open>
+            <summary class="ur-suite-summary">
+                <span class="ur-suite-name">#${Number(item.id)} · ${escapeHtml(item.name || group.suite)}</span>
+                ${meta ? `<span class="ur-suite-stats">${meta}</span>` : ''}
+            </summary>
+            <div class="ur-suite-body">${steps}</div>
+        </details>`;
     }).join('');
 }
+
+function showActivityDetail(group) {
+    const root = document.getElementById('activity-detail-root');
+    const title = document.getElementById('activity-detail-title');
+    if (!root || !group) return;
+    if (title) title.textContent = [group.project, group.suite].filter(Boolean).join(' · ');
+    root.innerHTML = activityDetailHTML(group);
+    document.querySelectorAll('.view-section').forEach(section => {
+        section.classList.remove('active');
+        section.style.removeProperty('display');
+    });
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    document.querySelector('.nav-item[onclick*="switchView(\'activity\'"]')?.classList.add('active');
+    const page = document.getElementById('view-activity-detail');
+    if (page) {
+        page.classList.add('active');
+        page.style.removeProperty('display');
+    }
+    if (typeof window.stopDashboardAutoRefresh === 'function') window.stopDashboardAutoRefresh();
+}
+
+window.expandActivitySteps = function () {
+    document.querySelectorAll('#activity-detail-root details').forEach(item => { item.open = true; });
+};
+
+window.collapseActivitySteps = function () {
+    document.querySelectorAll('#activity-detail-root details').forEach(item => { item.open = false; });
+};
+
+window.closeActivityDetail = function () {
+    const nav = document.querySelector('.nav-item[onclick*="switchView(\'activity\'"]');
+    window.switchView('activity', nav);
+};
 
 function renderActivityBoard() {
     const body = document.getElementById('activity-table-body');
@@ -1472,19 +1491,16 @@ function renderActivityBoard() {
         empty.hidden = false;
         empty.textContent = known ? 'No actions match these filters.' : 'No actions recorded yet.';
         activitySelected = '';
-        renderActivityDetail(null);
-        const hint = document.getElementById('activity-detail-hint');
-        if (hint) hint.hidden = true;
         return;
     }
     empty.hidden = true;
     if (!groups.some(group => group.key === activitySelected)) activitySelected = '';
     body.innerHTML = groups.map((group, index) => {
-        const label = group.last ? (HISTORY_KIND[group.last.kind] || group.last.kind || 'Action') : '—';
+        const label = group.last ? (HISTORY_KIND[group.last.kind] || group.last.kind || 'Action') : '-';
         const tone = group.last ? activityKindTone(group.last.kind) : 'neutral';
         const selected = group.key === activitySelected ? ' class="is-selected"' : '';
         return `<tr${selected} data-activity-index="${index}">
-            <td>${escapeHtml(group.project || '—')}</td>
+            <td>${escapeHtml(group.project || '-')}</td>
             <td><span class="activity-suite" title="${escapeHtml(group.suite)}">${escapeHtml(group.suite)}</span></td>
             <td>${group.incidents.length}</td>
             <td><span class="kpi-tone-${tone}">${escapeHtml(label)}</span></td>
@@ -1494,11 +1510,12 @@ function renderActivityBoard() {
     body.querySelectorAll('tr').forEach(row => {
         row.addEventListener('click', () => {
             const index = Number(row.getAttribute('data-activity-index'));
-            activitySelected = groups[index] ? groups[index].key : '';
-            renderActivityBoard();
+            const group = groups[index];
+            if (!group) return;
+            activitySelected = group.key;
+            showActivityDetail(group);
         });
     });
-    renderActivityDetail(groups.find(group => group.key === activitySelected) || null);
 }
 
 function bindActivityFilters() {
@@ -1602,7 +1619,7 @@ function renderUnownedBoard() {
     kpis.innerHTML = [
         tile('Waiting', rows.length, rows.length ? 'danger' : 'success'),
         tile('15 min or more', late, late ? 'warn' : 'neutral'),
-        tile('Oldest', rows.length ? formatWait(oldest) : '—', oldest >= 15 ? 'warn' : 'neutral'),
+        tile('Oldest', rows.length ? formatWait(oldest) : '-', oldest >= 15 ? 'warn' : 'neutral'),
         tile('Gateways', gateways, 'info'),
     ].join('');
     if (!rows.length) {
@@ -1717,7 +1734,7 @@ function historyDocumentHTML(flow) {
         </section>`;
     }).join('');
     const note = flow?.truncated ? '<p class="note">The newest 400 incidents are included.</p>' : '';
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SRE Capsule — Action history</title>
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SRE Capsule - Action history</title>
 <style>
 body{font-family:Inter,Segoe UI,sans-serif;color:#1c2434;margin:28px;background:#fff}
 .doc-head{margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid #d8dee6}
@@ -1784,12 +1801,7 @@ window.refreshMaintenanceBanner = async function () {
     const role = parseJwt(localStorage.getItem('sre-jwt')).role;
     const canEnd = canAccessFinOps(role);
     el.hidden = false;
-    el.innerHTML = windows.map(windowRow => {
-        const end = canEnd
-            ? ` <button type="button" class="btn btn-secondary btn-sm" data-project="${encodeURIComponent(windowRow.project || '')}" onclick="endMaintenance(this.dataset.project)">End</button>`
-            : '';
-        return `<div><strong>${escapeHtml(windowRow.project || '')}</strong> is in maintenance until ${escapeHtml(windowRow.ends_at || '')}. ${escapeHtml(windowRow.reason || '')}${end}</div>`;
-    }).join('');
+    el.innerHTML = window.maintenanceWindowTable ? window.maintenanceWindowTable(windows, canEnd) : '';
 };
 
 async function postIncidentOps(id, payload) {
@@ -2173,7 +2185,7 @@ window.performLogin = function () {
             const isAbort = err?.name === 'AbortError';
             const isNetwork = err instanceof TypeError || isAbort || (err.message && /failed|network/i.test(err.message));
             const text = isAbort
-                ? 'Login timed out. The server may be overloaded — wait and try again.'
+                ? 'Login timed out. The server may be overloaded - wait and try again.'
                 : isNetwork
                 ? 'Cannot reach the server. Open http://localhost:9000 and start the backend (go run ./cmd/srecapsule).'
                 : (err.message || 'Invalid username or password.');
@@ -2376,6 +2388,11 @@ window.switchView = function (id, el) {
     }
     if (id === 'about') {
         if (window.loadAboutView) window.loadAboutView();
+    }
+    if (id === 'workflow') {
+        if (window.loadWorkflowPage) window.loadWorkflowPage();
+    } else if (typeof window.closeWorkflowEditor === 'function') {
+        window.closeWorkflowEditor();
     }
     if (id === 'profile' && window.loadProfileView) window.loadProfileView();
 

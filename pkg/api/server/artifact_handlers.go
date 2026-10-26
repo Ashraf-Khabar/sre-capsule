@@ -120,7 +120,7 @@ func handleCheckFlaky(config *core.Config, w http.ResponseWriter, r *http.Reques
 
 func flakyMessage(flaky bool) string {
 	if flaky {
-		return "This test is known as unstable in CI (resolved and failed again within 30 days)."
+		return "This fingerprint was tagged [FLAKY] in the last 30 days. New failures are tagged when the same test fails again within 48 hours."
 	}
 	return "No recent flaky history for this fingerprint."
 }

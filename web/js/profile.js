@@ -3,12 +3,12 @@
  * Personal account settings and persisted user preferences
  */
 import { fetchWithAuth, parseJwt, parseApiJson } from './api.js';
-import { secureLinkTokenFromPath } from './links.js';
+import { secureLinkTokenFromPath } from './links.js?v=1.0.101-workflow-page';
 import { notify, applyThemeAppearance, previewThemeFromForm } from './ui.js';
-import { roleLabel, normalizeRole, canAccessView } from './roles.js';
+import { roleLabel, normalizeRole, canAccessView } from './roles.js?v=1.0.101-workflow-page';
 import { setSelectedCurrency } from './settings.js';
-import { renderConfigurationPresets, renderThemePickers, initConfigurationPresetsUI } from './config-presets.js?v=1.0.63-docs';
-import { setLocale, applyI18n, t, getLocale, PREF_LANGUAGE_KEY } from './i18n.js?v=1.0.63-docs';
+import { renderConfigurationPresets, renderThemePickers, initConfigurationPresetsUI } from './config-presets.js?v=1.0.101-workflow-page';
+import { setLocale, applyI18n, t, getLocale, PREF_LANGUAGE_KEY } from './i18n.js?v=1.0.101-workflow-page';
 import { avatarMarkup, renderAvatarPicker, resizeProfilePhoto } from './avatars.js';
 
 export const PREF_DEFAULT_RANGE_KEY = 'sre-pref-default-range';
@@ -138,7 +138,7 @@ export function notifyNewIncidentsIfEnabled(count, sampleTitle) {
     }
     if (lastIncidentCountForNotify !== null && count > lastIncidentCountForNotify) {
         try {
-            new Notification('SRE Capsule — new incident', {
+            new Notification('SRE Capsule - new incident', {
                 body: sampleTitle || 'New failure detected on Telemetry Stream',
                 tag: 'sre-capsule-incident'
             });
@@ -148,7 +148,7 @@ export function notifyNewIncidentsIfEnabled(count, sampleTitle) {
 }
 
 export function formatUserDateTime(value) {
-    if (!value) return '—';
+    if (!value) return '-';
     const d = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(d.getTime())) return String(value);
     const fmt = userPreferences.date_format || 'locale';
@@ -255,7 +255,7 @@ function renderProfileHeader({ fullname, username, role }) {
             username
         }, 40);
     }
-    if (nameEl) nameEl.textContent = displayName || username || '—';
+    if (nameEl) nameEl.textContent = displayName || username || '-';
     if (roleEl && role) roleEl.textContent = roleLabel(role);
     if (badgeEl && role) {
         const norm = normalizeRole(role);
@@ -449,6 +449,7 @@ export function switchProfileTab(tabId, btn) {
         panel.classList.toggle('active', active);
         panel.hidden = !active;
     });
+    if (tabId === 'docs' && window.loadAboutView) window.loadAboutView();
     try {
         localStorage.setItem(PREF_PROFILE_TAB_KEY, tabId);
     } catch (_) { /* quota */ }
@@ -555,7 +556,7 @@ export function clearLocalProfileData() {
     ['sre-theme', PREF_CURRENCY_KEY, PREF_ALERT_SOUNDS_KEY, PREF_DEFAULT_RANGE_KEY, 'sre-sidebar-collapsed', 'sre-dashboard-range', PREF_PROFILE_TAB_KEY].forEach((k) => {
         try { localStorage.removeItem(k); } catch (_) { /* quota */ }
     });
-    notify('Local data cleared — reload recommended', 'success');
+    notify('Local data cleared - reload recommended', 'success');
 }
 
 function renderAvatarChooser() {

@@ -1,9 +1,9 @@
 /**
- * Unified Execution Hub — pipeline flags, test matrix, detail side-sheet.
+ * Unified Execution Hub - pipeline flags, test matrix, detail side-sheet.
  */
 import { fetchWithAuth, parseApiJson, parseJwt } from './api.js';
 import { notify } from './ui.js';
-import { canPatchExecutionFlags, canViewHealing, canManageHealing } from './roles.js';
+import { canPatchExecutionFlags, canViewHealing, canManageHealing } from './roles.js?v=1.0.101-workflow-page';
 
 const ENV_OPTIONS = ['UNKNOWN', 'PROD', 'STAGING', 'INTEGRATION', 'DEV'];
 const TYPE_OPTIONS = ['REAL', 'TEST-RUN', 'NIGHTLY', 'SMOKE'];
@@ -90,7 +90,7 @@ export function renderGroupExecFlagsHtml(group, canPatch) {
 
 export function renderMatrixSectionHtml(group) {
     if (!group.has_real_run) {
-        return `<div class="exec-matrix-section exec-matrix-section--empty"><span class="exec-matrix-hint">No pipeline run id — matrix available after CI webhook with X-Run-Id.</span></div>`;
+        return `<div class="exec-matrix-section exec-matrix-section--empty"><span class="exec-matrix-hint">No pipeline run id - matrix available after CI webhook with X-Run-Id.</span></div>`;
     }
     return `<div class="exec-matrix-section">
         <div class="exec-matrix-head">
@@ -263,7 +263,7 @@ function formatExecutionSheetLogs(detail) {
     if (chunks.length) return chunks.join('\n\n');
     if (st === 'pass') {
         const ms = detail.duration_ms ? ` (${detail.duration_ms} ms)` : '';
-        return `[INFO] Test passed${ms}. No stdout/stderr in the stored report — enable framework logging in CI to capture output here.`;
+        return `[INFO] Test passed${ms}. No stdout/stderr in the stored report - enable framework logging in CI to capture output here.`;
     }
     if (st === 'skip') return '[INFO] Test skipped. No logs in report.';
     return 'No logs captured for this test.';

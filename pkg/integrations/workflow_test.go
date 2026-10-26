@@ -95,6 +95,14 @@ func TestEvaluateCondition_textEquals(t *testing.T) {
 	if !EvaluateCondition(equals, ctx) {
 		t.Fatal("expected equals match on error field")
 	}
+	prefix := &ConditionExpr{Op: "text", Match: "prefix", Field: "incident.error", Value: "upstream"}
+	if !EvaluateCondition(prefix, ctx) {
+		t.Fatal("expected prefix match on error field")
+	}
+	absent := &ConditionExpr{Op: "text", Match: "not_contains", Field: "incident.error", Value: "disk full"}
+	if !EvaluateCondition(absent, ctx) {
+		t.Fatal("expected not_contains match")
+	}
 }
 
 func TestWorkflowEngine_runsActionOnBranch(t *testing.T) {

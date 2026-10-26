@@ -10,13 +10,13 @@ const WorkflowSchemaVersion = 1
 
 // WorkflowDocument is the canonical DAG format stored in projects.sre_workflow_json.
 type WorkflowDocument struct {
-	Version int                      `json:"version"`
-	Enabled bool                     `json:"enabled"`
-	Meta    WorkflowMeta             `json:"meta,omitempty"`
-	Entry   string                   `json:"entry"`
-	Nodes   map[string]WorkflowNode  `json:"nodes"`
-	Edges   []WorkflowEdge           `json:"edges"`
-	UI      json.RawMessage          `json:"ui,omitempty"`
+	Version int                     `json:"version"`
+	Enabled bool                    `json:"enabled"`
+	Meta    WorkflowMeta            `json:"meta,omitempty"`
+	Entry   string                  `json:"entry"`
+	Nodes   map[string]WorkflowNode `json:"nodes"`
+	Edges   []WorkflowEdge          `json:"edges"`
+	UI      json.RawMessage         `json:"ui,omitempty"`
 }
 
 type WorkflowMeta struct {
@@ -25,11 +25,11 @@ type WorkflowMeta struct {
 }
 
 type WorkflowNode struct {
-	Type        string          `json:"type"` // trigger | condition | action
-	Label       string          `json:"label,omitempty"`
-	When        *ConditionExpr  `json:"when,omitempty"`
-	FilePath    string          `json:"file_path,omitempty"`
-	Integration string          `json:"integration,omitempty"`
+	Type        string         `json:"type"` // trigger | condition | action
+	Label       string         `json:"label,omitempty"`
+	When        *ConditionExpr `json:"when,omitempty"`
+	FilePath    string         `json:"file_path,omitempty"`
+	Integration string         `json:"integration,omitempty"`
 }
 
 type WorkflowEdge struct {
@@ -162,7 +162,7 @@ func validateWorkflow(doc *WorkflowDocument, reg *Registry, allowed map[string]b
 			if requireRoutingActive && !IsActiveForRouting(m.Status, m.RoutingEnabled, m.AutoRun) {
 				return fmt.Errorf("integration %q is not active for routing", m.Name)
 			}
-			if len(allowed) > 0 && !allowed[node.FilePath] {
+			if requireRoutingActive && (len(allowed) == 0 || !allowed[node.FilePath]) {
 				return fmt.Errorf("integration %q is not configured on this gateway", m.Name)
 			}
 		}
@@ -326,6 +326,10 @@ func evalText(expr *ConditionExpr, inc IncidentContext) bool {
 	switch match {
 	case "contains":
 		return strings.Contains(hay, want)
+	case "not_contains", "not-contains":
+		return !strings.Contains(hay, want)
+	case "prefix":
+		return strings.HasPrefix(hay, want)
 	case "eq", "equals":
 		return hay == want
 	}
@@ -350,4 +354,3 @@ func outgoingEdges(edges []WorkflowEdge, from, when string) []string {
 	}
 	return out
 }
-

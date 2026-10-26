@@ -1,6 +1,6 @@
-/** German — keys used via data-i18n and t('key') */
+/** German - keys used via data-i18n and t('key') */
 export default {
-    'app.title': 'SRE Capsule — SRE Control Plane',
+    'app.title': 'SRE Capsule - SRE Control Plane',
     'common.save': 'Änderungen speichern',
     'common.reset': 'Abschnitt zurücksetzen',
     'common.cancel': 'Abbrechen',
@@ -39,6 +39,8 @@ export default {
     'nav.suite': 'Suite-Zustand',
     'nav.activity': 'Aktivität',
     'nav.unowned': 'Ohne Verantwortlichen',
+    'nav.section.workflow': 'WORKFLOW',
+    'nav.workflow': 'Workflow',
     'nav.dora': 'DORA-Dashboard',
     'nav.finops': 'FinOps Intelligence',
     'nav.healing': 'Self-Healing Hub',
@@ -75,6 +77,7 @@ export default {
     'account.tab.notifications': 'Benachrichtigungen',
     'account.tab.security': 'Sicherheit',
     'account.tab.data': 'Daten & Datenschutz',
+    'account.tab.docs': 'Dokumentation',
     'account.identity.title': 'Identität',
     'account.identity.desc': 'Wie Ihr Name in der Control Plane und im Audit-Kontext angezeigt wird.',
     'account.identity.displayName': 'Anzeigename',
@@ -219,7 +222,7 @@ export default {
     'view.about.subtitle': 'SRE-Theorie, und wo jede Praxis in SRE Capsule liegt.',
 
     'notify.profileSaved': 'Profil gespeichert',
-    'notify.profileReset': 'Formular auf Standardwerte zurückgesetzt — zum Anwenden auf Speichern klicken',
+    'notify.profileReset': 'Formular auf Standardwerte zurückgesetzt - zum Anwenden auf Speichern klicken',
     'notify.profileLoadError': 'Profil konnte nicht geladen werden',
     'notify.configApplied': 'Konfiguration angewendet',
     'notify.configApplyError': 'Konfiguration konnte nicht angewendet werden',

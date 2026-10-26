@@ -40,7 +40,7 @@ export const SRE_THEORY_DOC_HTML = `
 
   <h3>The change that sits next to the incident</h3>
   <p>Most incidents are easier to read next to the deploy that just landed. A change far from the incident is context, not a cause.</p>
-  <p><strong>In SRE Capsule.</strong> Each pipeline card shows the nearest deploy: commit, branch, outcome, and how many minutes before the incident. If that deploy is within 30 minutes and you can open workflows, <strong>Open workflow</strong> jumps to that gateway’s DAG.</p>
+  <p><strong>In SRE Capsule.</strong> Each pipeline card shows the nearest deploy: commit, branch, outcome, and how many minutes before the incident. The remediation graph for that gateway is edited in the <strong>Workflow</strong> section.</p>
 
   <h3>Runbook</h3>
   <p>A runbook is a known sequence for a known symptom. You confirm it. You do not let a matcher fire a production action because a word appeared in a log.</p>
@@ -50,7 +50,7 @@ export const SRE_THEORY_DOC_HTML = `
   <p>A postmortem is the chronology of what was recorded, written after the incident is closed, so the next one is shorter. A missing fact stays missing.</p>
   <p><strong>In SRE Capsule.</strong> After resolve, <strong>Write postmortem</strong> drafts from the timeline, comments, and the nearest deploy. If AI is enabled, the model may rewrite that draft and is told not to add a cause, a person, or a time that is not already there. If AI is off or does not answer, the factual draft is saved. <strong>Save draft</strong> keeps your edit.</p>
 
-  <h3>Maintenance</h3>
+  <h3 data-doc-anchor="maintenance">Maintenance</h3>
   <p>A maintenance window says the team already knows why the gateway may fail. Hiding those incidents would erase the record. Marking them keeps the queue honest.</p>
   <p><strong>In SRE Capsule.</strong> On DORA, under the error budget, a manager sets gateway, reason, and 1 to 24 hours, then <strong>Start</strong>. Telemetry Stream shows a banner. Incidents that start during the window stay in the list and carry the reason. <strong>End</strong> closes the window. One open window per gateway.</p>
 

@@ -1,6 +1,6 @@
-/** Simplified Chinese — keys used via data-i18n and t('key') */
+/** Simplified Chinese - keys used via data-i18n and t('key') */
 export default {
-    'app.title': 'SRE Capsule — SRE 控制平面',
+    'app.title': 'SRE Capsule - SRE 控制平面',
     'common.save': '保存更改',
     'common.reset': '重置本节',
     'common.cancel': '取消',
@@ -39,6 +39,8 @@ export default {
     'nav.suite': '套件健康',
     'nav.activity': '活动记录',
     'nav.unowned': '无负责人',
+    'nav.section.workflow': '工作流',
+    'nav.workflow': '工作流',
     'nav.dora': 'DORA 仪表盘',
     'nav.finops': 'FinOps 智能分析',
     'nav.healing': '自愈中心',
@@ -75,6 +77,7 @@ export default {
     'account.tab.notifications': '通知',
     'account.tab.security': '安全',
     'account.tab.data': '数据与隐私',
+    'account.tab.docs': '文档',
     'account.identity.title': '身份',
     'account.identity.desc': '您在控制平面和审计上下文中的显示名称。',
     'account.identity.displayName': '显示名称',
@@ -219,7 +222,7 @@ export default {
     'view.about.subtitle': 'SRE 理论，以及每项实践在 SRE Capsule 中的做法。',
 
     'notify.profileSaved': '配置文件已保存',
-    'notify.profileReset': '表单已重置为默认值 — 点击保存以应用',
+    'notify.profileReset': '表单已重置为默认值 - 点击保存以应用',
     'notify.profileLoadError': '无法加载配置文件',
     'notify.configApplied': '配置已应用',
     'notify.configApplyError': '应用配置失败',

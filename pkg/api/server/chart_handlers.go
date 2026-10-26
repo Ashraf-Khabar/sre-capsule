@@ -21,7 +21,7 @@ func chartStudioHandler(config *core.Config, next http.HandlerFunc) http.Handler
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 		if !core.CanAccessChartStudio(claims.Role) {
 			http.Error(w, "Chart Studio access required", http.StatusForbidden)
 			return
@@ -294,7 +294,7 @@ func chartClaimsFromRequest(r *http.Request) *Claims {
 	authHeader := r.Header.Get("Authorization")
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 	claims := &Claims{}
-	if _, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil }); err == nil {
+	if _, err := jwt.ParseWithClaims(tokenString, claims, jwtSigningKey); err == nil {
 		return claims
 	}
 	return &Claims{}

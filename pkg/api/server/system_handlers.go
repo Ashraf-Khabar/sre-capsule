@@ -74,7 +74,7 @@ func registerSystemRoutes(config *core.Config) {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 		if !core.CanManagePluginAutoRun(claims.Role) {
 			writeJSONError(w, "Manager or Platform Admin role required", http.StatusForbidden)
 			return
@@ -109,7 +109,7 @@ func registerSystemRoutes(config *core.Config) {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 		if !core.CanManagePluginAutoRun(claims.Role) {
 			writeJSONError(w, "Manager or Platform Admin role required", http.StatusForbidden)
 			return

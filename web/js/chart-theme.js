@@ -1,5 +1,5 @@
 /**
- * Chart.js theme helpers — colors from CSS design tokens (light/dark).
+ * Chart.js theme helpers - colors from CSS design tokens (light/dark).
  */
 export function cssVar(name, fallback = '') {
     const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();

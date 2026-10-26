@@ -147,7 +147,7 @@ func normalizeLanguage(v string) string {
 
 func normalizeLandingView(v string) string {
 	switch v {
-	case "dashboard", "suite", "activity", "unowned", "ingestion", "finops", "dora", "plugins", "rca", "healing", "quarantine", "runbooks", "about", "ai-config", "execution-hub":
+	case "dashboard", "suite", "activity", "unowned", "ingestion", "finops", "dora", "plugins", "rca", "healing", "quarantine", "runbooks", "about", "ai-config", "execution-hub", "workflow":
 		return v
 	default:
 		return "dashboard"
@@ -541,9 +541,7 @@ func claimsFromRequest(r *http.Request) *Claims {
 	authHeader := r.Header.Get("Authorization")
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 	claims := &Claims{}
-	if _, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	}); err != nil {
+	if _, err := jwt.ParseWithClaims(tokenString, claims, jwtSigningKey); err != nil {
 		return nil
 	}
 	return claims

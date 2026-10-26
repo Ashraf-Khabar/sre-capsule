@@ -3,7 +3,7 @@
  */
 import { fetchWithAuth, parseApiJson, parseJwt } from './api.js';
 import { notify, showConfirmModal } from './ui.js';
-import { canManageHealing, canDeleteIncidents } from './roles.js';
+import { canManageHealing, canDeleteIncidents } from './roles.js?v=1.0.101-workflow-page';
 
 let currentRole = '';
 const selected = new Set(); // kept for bulk helpers that other views may call
@@ -663,13 +663,13 @@ async function _loadAIChip() {
     try {
         const { ok, data } = await parseApiJson(await fetchWithAuth('/api/ai/status'));
         if (ok && data?.enabled && data.provider !== 'disabled') {
-            chip.innerHTML = `<span class="hc-dot hc-dot--live"></span>${esc(data.provider.toUpperCase())} · ${esc(data.model || '—')}`;
+            chip.innerHTML = `<span class="hc-dot hc-dot--live"></span>${esc(data.provider.toUpperCase())} · ${esc(data.model || '-')}`;
             chip.className = 'hc-chip hc-chip--on';
         } else {
             chip.innerHTML = `<span class="hc-dot"></span>AI off`;
             chip.className = 'hc-chip hc-chip--off';
         }
-    } catch { if (chip) { chip.textContent = 'AI —'; chip.className = 'hc-chip hc-chip--off'; } }
+    } catch { if (chip) { chip.textContent = 'AI -'; chip.className = 'hc-chip hc-chip--off'; } }
 }
 
 async function loadHealingProjects(sel) {
@@ -703,7 +703,7 @@ export async function loadHealingInsights() {
     if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
 
     if (!rows.length) {
-        body.innerHTML = `<div class="hc-empty">${listMode === 'archive' ? 'No archived failures.' : 'No open failures — all tests are passing.'}</div>`;
+        body.innerHTML = `<div class="hc-empty">${listMode === 'archive' ? 'No archived failures.' : 'No open failures - all tests are passing.'}</div>`;
         return;
     }
     failures = rows;
@@ -974,8 +974,8 @@ function formatConfidenceBadge(data, locs) {
     const noFix = !locs.healed || sameSelector;
     if (noFix) {
         const why = data.heal_method === 'no_dom'
-            ? 'Not confirmed — the page HTML was not stored with this failure'
-            : 'Not confirmed — the model will not guess a selector';
+            ? 'Not confirmed - the page HTML was not stored with this failure'
+            : 'Not confirmed - the model will not guess a selector';
         return { conf: 'low', precise: false, label: why, pct: 0 };
     }
     if (isPreciseFix(data)) {
@@ -1030,13 +1030,13 @@ function paintAnalysis(id, data) {
         // Locator diff only when the locator MCP is the one that ran.
         let locRow = '';
         if (locatorMCP && (locs.original || locs.healed)) {
-            const fixedDisplay = (locs.healed && locs.healed !== locs.original) ? locs.healed : '—';
+            const fixedDisplay = (locs.healed && locs.healed !== locs.original) ? locs.healed : '-';
             const fixedClass = badge.precise ? 'hc-loc hc-loc--ok' : 'hc-loc hc-loc--hold';
             locRow = `
             <div class="hc-locrow">
                 <div class="hc-locrow__col">
                     <span class="hc-loclbl">Broken selector</span>
-                    <code class="hc-loc hc-loc--bad">${esc(locs.original || '—')}</code>
+                    <code class="hc-loc hc-loc--bad">${esc(locs.original || '-')}</code>
                 </div>
                 <span class="hc-arrow">${ICON.arrow}</span>
                 <div class="hc-locrow__col">
@@ -1277,7 +1277,7 @@ function renderItv(h) {
     <div class="hc-locrow">
         <div class="hc-locrow__col">
             <span class="hc-loclbl">Broken</span>
-            <code class="hc-loc hc-loc--bad">${esc(h.original_locator || '—')}</code>
+            <code class="hc-loc hc-loc--bad">${esc(h.original_locator || '-')}</code>
         </div>
         <span class="hc-arrow">${ICON.arrow}</span>
         <div class="hc-locrow__col">

@@ -1,5 +1,5 @@
 /**
- * Help Center — formula blocks (light background + copy)
+ * Help Center - formula blocks (light background + copy)
  */
 import { notify } from './ui.js';
 
@@ -37,7 +37,7 @@ export function bindAboutFormulaCopy(root) {
                     btn.classList.remove('copied');
                 }, 2000);
             } catch {
-                notify('Could not copy — check browser permissions', 'error');
+                notify('Could not copy - check browser permissions', 'error');
             }
         });
     });

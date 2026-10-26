@@ -8,7 +8,7 @@
     <link rel="icon" href="/assets/logo.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap">
-    <link rel="stylesheet" href="/style.css?v=1.0.94-toast">
+    <link rel="stylesheet" href="/style.css?v=1.0.103-open-workflow">
     <script>
         try {
             if (localStorage.getItem('sre-sidebar-collapsed') === '1') {
@@ -242,6 +242,16 @@
                     <path d="M17 14v6"></path>
                     <path d="M14 17h6"></path>
                 </svg><span class="nav-text" data-i18n="nav.unowned">Unowned</span>
+            </div>
+            <div class="nav-section-label" style="margin-top: 10px;" data-i18n="nav.section.workflow">WORKFLOW</div>
+            <div class="nav-item" onclick="switchView('workflow', this)" data-tooltip="Workflow">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="5" rx="1"></rect>
+                    <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                    <rect x="14" y="16" width="7" height="5" rx="1"></rect>
+                    <path d="M6.5 8v4h11"></path>
+                    <path d="M10.5 12H6.5v4"></path>
+                </svg><span class="nav-text" data-i18n="nav.workflow">Workflow</span>
             </div>
             <div class="nav-section-label role-manager-only" style="margin-top: 10px;" data-i18n="nav.section.executive">EXECUTIVE</div>
             <div class="nav-item role-manager-only" onclick="switchView('dora', this)" data-tooltip="DORA Dashboard">
@@ -483,7 +493,7 @@
                         <div>
                             <h3>System analytics &amp; quality</h3>
                             <p class="ops-chart-caption" style="margin:4px 0 0;">
-                                Metrics and charts follow the dashboard time range above. Customize layout, colors, and order — saved to your profile.
+                                Metrics and charts follow the dashboard time range above. Customize layout, colors, and order - saved to your profile.
                             </p>
                         </div>
                         <div class="analytics-panel-actions">
@@ -560,7 +570,7 @@
                 <div class="header-bar">
                     <div>
                         <h1 class="executive-view__title">Activity</h1>
-                        <p class="executive-view__subtitle">History by suite and gateway. Select a row to read the actions.</p>
+                        <p class="executive-view__subtitle">History by suite and gateway. Open a row to read the steps.</p>
                     </div>
                 </div>
                 <div class="executive-toolbar">
@@ -598,8 +608,18 @@
                     </table>
                     <p id="activity-empty" class="dora-budget__hint" hidden>No actions recorded yet.</p>
                 </div>
-                <p id="activity-detail-hint" class="dora-budget__hint">Select a suite to read its history.</p>
-                <div id="activity-detail" class="activity-detail" hidden></div>
+            </section>
+
+            <section id="view-activity-detail" class="view-section unified-report-view" aria-label="Activity steps">
+                <div class="unified-report-toolbar">
+                    <button type="button" class="btn btn-secondary" onclick="closeActivityDetail()">← Back to Activity</button>
+                    <span class="unified-report-toolbar-title" id="activity-detail-title">Activity</span>
+                    <div class="activity-detail-actions">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="expandActivitySteps()">Expand all</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="collapseActivitySteps()">Collapse all</button>
+                    </div>
+                </div>
+                <div id="activity-detail-root" class="ur-suite-tree"></div>
             </section>
 
             <section id="view-unowned" class="view-section executive-view">
@@ -814,7 +834,7 @@
                             <p class="form-hint">Add routing only for integrations <strong>enabled for gateways</strong> by your Manager (Configure &amp; Save, or <strong>Enable for gateways</strong> in Plugin Engine). AUTO-RUN is separate and controls automatic webhook triggers.</p>
                             <div id="ci-sre-routing-list" style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 12px;"></div>
                             <button type="button" id="ci-add-routing-btn" class="btn-secondary" style="width: 100%; margin-bottom: 10px; font-size: 12px;">+ Add configuration</button>
-                            <p class="form-hint form-hint--subtle" style="margin-bottom: 16px;">Use <strong>WORKFLOW</strong> in the pipeline table to draw a visual DAG. Toggle <strong>Enable workflow</strong> in the editor to switch between legacy AUTO-RUN and the DAG.</p>
+                            <p class="form-hint form-hint--subtle" style="margin-bottom: 16px;">The remediation graph is edited in the <strong>Workflow</strong> section. Enable it there to replace legacy AUTO-RUN for this gateway.</p>
 
                             <div class="gateway-credentials">
                                 <label class="form-label--accent">Generated Webhook URL (Read-Only)</label>
@@ -836,6 +856,16 @@
                     </div>
 
                     <div class="ingestion-table-wrap">
+                        <div class="executive-toolbar gateway-table-filters">
+                            <label class="maintenance-field" for="gateway-filter-search"><span>Search</span>
+                                <input type="search" id="gateway-filter-search" class="login-input" placeholder="Gateway name" aria-label="Search gateways">
+                            </label>
+                            <label class="maintenance-field" for="gateway-filter-ci"><span>CI system</span>
+                                <select id="gateway-filter-ci" class="login-input" aria-label="Filter by CI system">
+                                    <option value="">All CI systems</option>
+                                </select>
+                            </label>
+                        </div>
                         <div class="ingestion-table-shell">
                             <table class="data-table">
                                 <thead>
@@ -843,7 +873,6 @@
                                         <th>Project Identifier</th>
                                         <th>CI System</th>
                                         <th>Secret Key Prefix</th>
-                                        <th>Workflow</th>
                                         <th class="data-table__actions">Manage</th>
                                     </tr>
                                 </thead>
@@ -881,7 +910,7 @@
                         <div class="hc-listpane__bar">
                             <div class="hc-listpane__title">
                                 <h2 id="healing-list-title">Open failures</h2>
-                                <span id="healing-stat-total" class="hc-count">—</span>
+                                <span id="healing-stat-total" class="hc-count">-</span>
                             </div>
                             <div class="hc-list-switch" role="tablist">
                                 <button type="button" class="hc-list-switch__btn is-active" id="hc-tab-open" data-mode="open">Open</button>
@@ -931,17 +960,17 @@
                 <div class="aipage-status-strip">
                     <div class="aipage-status-item">
                         <span class="aipage-status-label">Provider</span>
-                        <span class="aipage-status-value" id="ai-kpi-provider">—</span>
+                        <span class="aipage-status-value" id="ai-kpi-provider">-</span>
                     </div>
                     <div class="aipage-status-sep"></div>
                     <div class="aipage-status-item">
                         <span class="aipage-status-label">Model</span>
-                        <span class="aipage-status-value" id="ai-kpi-model">—</span>
+                        <span class="aipage-status-value" id="ai-kpi-model">-</span>
                     </div>
                     <div class="aipage-status-sep"></div>
                     <div class="aipage-status-item">
                         <span class="aipage-status-label">API Key</span>
-                        <span class="aipage-status-value" id="ai-kpi-apikey">—</span>
+                        <span class="aipage-status-value" id="ai-kpi-apikey">-</span>
                     </div>
                 </div>
 
@@ -1007,7 +1036,7 @@
                                 <p class="form-field-hint">Leave blank to keep the existing key. The key is never returned by the API.</p>
                             </div>
                             <div class="form-field" style="margin:0 0 0;">
-                                <label for="ai-key-env">Environment variable name <span style="font-weight:400;color:var(--text-muted)">(optional — overrides the key above)</span></label>
+                                <label for="ai-key-env">Environment variable name <span style="font-weight:400;color:var(--text-muted)">(optional - overrides the key above)</span></label>
                                 <input type="text" id="ai-key-env" class="login-input" placeholder="GEMINI_API_KEY" style="max-width:none;">
                                 <p class="form-field-hint">If this env var is set on the server it takes priority over the key entered above.</p>
                             </div>
@@ -1070,7 +1099,7 @@
             <section id="view-dora" class="view-section executive-view">
                 <div class="header-bar">
                     <h1 class="executive-view__title">DORA &amp; Executive Dashboard</h1>
-                    <p class="executive-view__subtitle">Deployment frequency, lead time, change failure rate, MTTR — correlated with Prometheus via <code>/api/webhooks/prometheus</code>.</p>
+                    <p class="executive-view__subtitle">Deployment frequency, lead time, change failure rate, MTTR - correlated with Prometheus via <code>/api/webhooks/prometheus</code>.</p>
                 </div>
                 <div class="executive-toolbar">
                     <select id="dora-project-filter" class="login-input" onchange="refreshDORAMetrics()"></select>
@@ -1084,37 +1113,37 @@
                 <div class="kpi-card-grid executive-kpi-grid">
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">Deploy frequency / day</span>
-                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-deploy-freq">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-deploy-freq">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-up" id="dora-kpi-deploy-freq-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">Lead time (median)</span>
-                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-lead-time">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-lead-time">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-down" id="dora-kpi-lead-time-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">Change failure rate</span>
-                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-cfr">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-cfr">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-down" id="dora-kpi-cfr-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">MTTR</span>
-                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-mttr">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-mttr">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-down" id="dora-kpi-mttr-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">Pipeline runs</span>
-                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-deployments">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-deployments">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-up" id="dora-kpi-deployments-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">External signals</span>
-                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-signals">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-signals">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-up" id="dora-kpi-signals-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">Correlated incidents</span>
-                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-correlated">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-neutral" id="dora-kpi-correlated">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-up" id="dora-kpi-correlated-trend" hidden></span>
                     </article>
                 </div>
@@ -1140,19 +1169,38 @@
                     </table>
                 </div>
                 <div class="data-card maintenance-card" id="maintenance-card">
-                    <h3 class="form-section-title" style="border-top:none;padding-top:0;margin:0 0 8px;">Maintenance</h3>
-                    <p class="dora-budget__hint">Mark a gateway while you already know why it will fail. Incidents stay on the dashboard and show the reason. They are not hidden.</p>
-                    <form id="maintenance-form" class="maintenance-form" onsubmit="startMaintenance(event)">
-                        <select id="maintenance-project" class="login-input" required></select>
-                        <input id="maintenance-reason" class="login-input" maxlength="160" placeholder="Reason" required>
-                        <select id="maintenance-hours" class="login-input" aria-label="Duration">
-                            <option value="1">1 hour</option>
-                            <option value="2">2 hours</option>
-                            <option value="4" selected>4 hours</option>
-                            <option value="8">8 hours</option>
-                            <option value="24">24 hours</option>
-                        </select>
-                        <button type="submit" class="btn btn-secondary btn-sm">Start</button>
+                    <div class="maintenance-head">
+                        <div>
+                            <h3 class="form-section-title" style="border-top:none;padding-top:0;margin:0 0 8px;">Maintenance</h3>
+                            <p class="dora-budget__hint">Mark a gateway while you already know why it will fail. Incidents stay on the dashboard and show the reason. They are not hidden.</p>
+                        </div>
+                        <button type="button" class="btn-secondary btn-sm" onclick="openMaintenanceHelp()">Documentation</button>
+                    </div>
+                    <form id="maintenance-form" class="maintenance-fields" onsubmit="startMaintenance(event)">
+                        <label class="maintenance-field">
+                            <span>Gateway</span>
+                            <select id="maintenance-project" class="login-input" required>
+                                <option value="">Select a gateway</option>
+                            </select>
+                            <small>The pipeline this window covers.</small>
+                        </label>
+                        <label class="maintenance-field">
+                            <span>Reason</span>
+                            <input id="maintenance-reason" class="login-input" maxlength="160" placeholder="Deploy freeze, migration, known outage" required>
+                            <small>Shown next to incidents that start during the window.</small>
+                        </label>
+                        <label class="maintenance-field">
+                            <span>Duration</span>
+                            <select id="maintenance-hours" class="login-input">
+                                <option value="1">1 hour</option>
+                                <option value="2">2 hours</option>
+                                <option value="4" selected>4 hours</option>
+                                <option value="8">8 hours</option>
+                                <option value="24">24 hours</option>
+                            </select>
+                            <small>From now. One open window per gateway.</small>
+                        </label>
+                        <button type="submit" class="btn btn-primary btn-sm maintenance-submit">Start maintenance</button>
                     </form>
                     <div id="maintenance-active" class="maintenance-active"></div>
                 </div>
@@ -1180,7 +1228,7 @@
                 <div class="finops-page-head">
                     <div class="finops-page-head__titles">
                         <h1>FinOps Intelligence</h1>
-                        <p>Weekly cost evolution, flaky waste, and CI spend — executive view.</p>
+                        <p>Weekly cost evolution, flaky waste, and CI spend - executive view.</p>
                         <p id="finops-range-hint" class="finops-range-hint"></p>
                     </div>
                     <button type="button" class="btn btn-secondary finops-refresh-btn" onclick="refreshFinOpsView()" title="Reload KPIs, charts, and weekly table">Refresh</button>
@@ -1189,33 +1237,33 @@
                 <div class="kpi-card-grid executive-kpi-grid finops-kpi-grid">
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">Total impact</span>
-                        <span class="kpi-card-premium__value kpi-tone-info" id="finops-kpi-total-cost">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-info" id="finops-kpi-total-cost">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-down" id="finops-kpi-total-cost-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">Flaky waste</span>
-                        <span class="kpi-card-premium__value kpi-tone-warn" id="finops-kpi-flaky-cost">—</span>
-                        <span class="kpi-card-premium__hint" id="finops-kpi-waste-pct">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-warn" id="finops-kpi-flaky-cost">-</span>
+                        <span class="kpi-card-premium__hint" id="finops-kpi-waste-pct">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-down" id="finops-kpi-flaky-cost-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">CI minutes lost</span>
-                        <span class="kpi-card-premium__value kpi-tone-danger" id="finops-kpi-ci-minutes">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-danger" id="finops-kpi-ci-minutes">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-down" id="finops-kpi-ci-minutes-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">Average MTTR</span>
-                        <span class="kpi-card-premium__value kpi-tone-success" id="finops-kpi-mttr">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-success" id="finops-kpi-mttr">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-up" id="finops-kpi-mttr-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">Total incidents</span>
-                        <span class="kpi-card-premium__value kpi-tone-neutral" id="finops-kpi-incidents">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-neutral" id="finops-kpi-incidents">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-down" id="finops-kpi-incidents-trend" hidden></span>
                     </article>
                     <article class="kpi-card-premium">
                         <span class="kpi-card-premium__label">Flaky tests</span>
-                        <span class="kpi-card-premium__value kpi-tone-warn" id="finops-kpi-flaky-count">—</span>
+                        <span class="kpi-card-premium__value kpi-tone-warn" id="finops-kpi-flaky-count">-</span>
                         <span class="kpi-card-premium__trend kpi-trend-down" id="finops-kpi-flaky-count-trend" hidden></span>
                     </article>
                 </div>
@@ -1298,8 +1346,8 @@
                     </div>
                 </div>
                 <div class="about-shell">
-                    <aside class="about-sidebar"><h2>Topics</h2><nav id="about-topic-nav" class="about-topic-nav"></nav></aside>
-                    <div id="about-topic-content"></div>
+                    <aside class="about-sidebar"><h2>Topics</h2><nav id="about-topic-nav" class="about-topic-nav" data-about-nav></nav></aside>
+                    <div id="about-topic-content" class="about-topic-content" data-about-content></div>
                 </div>
             </section>
 
@@ -1358,19 +1406,19 @@
                     <div class="aipage-status-sep"></div>
                     <div class="aipage-status-item">
                         <span class="aipage-status-label" data-i18n="account.signedInAs">Signed in as</span>
-                        <span class="aipage-status-value" id="profile-display-name">—</span>
+                        <span class="aipage-status-value" id="profile-display-name">-</span>
                     </div>
                     <div class="aipage-status-sep"></div>
                     <div class="aipage-status-item">
                         <span class="aipage-status-label" data-i18n="account.username">Username</span>
-                        <span class="aipage-status-value" id="profile-username">—</span>
+                        <span class="aipage-status-value" id="profile-username">-</span>
                     </div>
                     <div class="aipage-status-sep"></div>
                     <div class="aipage-status-item">
                         <span class="aipage-status-label" data-i18n="account.role">Role</span>
-                        <span class="aipage-status-value"><span id="profile-role-badge" class="profile-role-badge role-observer">—</span></span>
+                        <span class="aipage-status-value"><span id="profile-role-badge" class="profile-role-badge role-observer">-</span></span>
                     </div>
-                    <span id="profile-role" class="sr-only">—</span>
+                    <span id="profile-role" class="sr-only">-</span>
                     <div class="aipage-status-sep"></div>
                     <div class="aipage-status-item">
                         <span class="aipage-status-label" data-i18n="account.activeProfile">Active profile</span>
@@ -1388,6 +1436,7 @@
                         <button type="button" class="profile-nav-btn" data-profile-tab="notifications" onclick="switchProfileTab('notifications', this)" data-i18n="account.tab.notifications">Notifications</button>
                         <button type="button" class="profile-nav-btn" data-profile-tab="security" onclick="switchProfileTab('security', this)" data-i18n="account.tab.security">Security</button>
                         <button type="button" class="profile-nav-btn" data-profile-tab="data" onclick="switchProfileTab('data', this)" data-i18n="account.tab.data">Data &amp; privacy</button>
+                        <button type="button" class="profile-nav-btn" data-profile-tab="docs" onclick="switchProfileTab('docs', this)" data-i18n="account.tab.docs">Documentation</button>
                     </nav>
 
                     <div class="profile-panels">
@@ -1428,6 +1477,7 @@
                                                 <option value="plugins">Plugin Engine</option>
                                                 <option value="healing">Self-Healing Hub</option>
                                                 <option value="ai-config">AI Configuration</option>
+                                                <option value="workflow">Workflow</option>
                                                 <option value="about">Documentation</option>
                                             </select>
                                             <p class="form-field-hint">Opened after sign-in when your role allows access.</p>
@@ -1841,7 +1891,58 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="profile-panel" id="profile-panel-docs" data-profile-panel="docs" hidden>
+                            <div class="about-shell">
+                                <aside class="about-sidebar"><h2>Topics</h2><nav class="about-topic-nav" data-about-nav></nav></aside>
+                                <div class="about-topic-content" data-about-content></div>
+                            </div>
+                        </div>
                     </div>
+                </div>
+            </section>
+
+            <section id="view-workflow" class="view-section workflow-page workflow-tester-collapsed">
+                <div id="workflow-list-panel">
+                    <div class="header-bar">
+                        <div>
+                            <h1 class="intelligence-view__title">Workflow</h1>
+                            <p class="intelligence-view__subtitle">Pick a CI/CD gateway. Lead and Manager can edit the graph. Everyone else can open it read-only.</p>
+                        </div>
+                    </div>
+                    <div class="executive-toolbar">
+                        <label class="maintenance-field" for="workflow-filter-search"><span>Search</span>
+                            <input type="search" id="workflow-filter-search" class="login-input" placeholder="Gateway name" aria-label="Search workflows">
+                        </label>
+                        <label class="maintenance-field" for="workflow-filter-status"><span>Status</span>
+                            <select id="workflow-filter-status" class="login-input" aria-label="Filter by workflow status">
+                                <option value="">All statuses</option>
+                                <option value="active">Active</option>
+                                <option value="draft">Draft</option>
+                                <option value="legacy">Legacy</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="ingestion-table-shell">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Gateway</th>
+                                    <th>CI system</th>
+                                    <th>Workflow</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="workflow-gateway-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="workflow-editor-host" hidden>
+                    <div class="executive-toolbar">
+                        <button type="button" class="btn-secondary btn-sm" onclick="loadWorkflowPage()">Back to gateways</button>
+                        <button type="button" class="btn-secondary btn-sm" id="workflow-tester-toggle" onclick="toggleWorkflowTester()">Show tester</button>
+                    </div>
+                    <div id="workflow-page-slot"></div>
                 </div>
             </section>
         </main>
@@ -1857,16 +1958,15 @@
                     <input type="checkbox" id="workflow-enabled-toggle" checked>
                     <span>Enable workflow</span>
                 </label>
-                <span id="workflow-readonly-badge">Read-only (Observer)</span>
-                <button type="button" class="btn-secondary" onclick="openWorkflowHelpTopic()" title="Open Documentation — Visual Workflows">?</button>
+                <span id="workflow-readonly-badge">Read-only</span>
+                <button type="button" class="btn-secondary" onclick="openWorkflowHelpTopic()" title="Open Documentation - Visual Workflows">?</button>
                 <button type="button" class="btn-secondary wf-edit-only" onclick="loadFlakyExampleWorkflow()">Example</button>
                 <button type="button" class="btn-secondary wf-edit-only" onclick="addWorkflowNode('trigger')">+ Trigger</button>
                 <button type="button" class="btn-secondary wf-edit-only" onclick="addWorkflowNode('condition')">+ Condition</button>
                 <button type="button" class="btn-secondary wf-edit-only" onclick="addWorkflowNode('action')">+ Action</button>
-                <button type="button" class="btn-secondary wf-edit-only" onclick="simulateWorkflow()">Simulate</button>
-                <button type="button" class="btn-secondary" onclick="fitWorkflowCanvas()">Fit</button>                <button type="button" class="btn-secondary wf-edit-only" onclick="clearWorkflow()">Reset</button>
+                <button type="button" class="btn-secondary" onclick="fitWorkflowCanvas()">Fit</button>
+                <button type="button" class="btn-secondary wf-edit-only" onclick="clearWorkflow()">Reset</button>
                 <button type="button" class="btn-primary wf-edit-only" onclick="saveWorkflow()">Save</button>
-                <button type="button" class="btn-secondary" onclick="closeWorkflowEditor()">Close</button>
             </div>
             <div class="workflow-editor-body">
                 <div class="workflow-canvas-wrap">
@@ -1877,7 +1977,7 @@
                             <p style="margin:0;">Click <strong>+ Trigger</strong> to start, or load a saved workflow.</p>                        </div>
                     </div>
                 </div>
-                <aside id="workflow-help-panel" class="open">
+                <aside id="workflow-help-panel">
                     <h3 class="plugin-config-panel__title" style="margin:0 0 10px;">Simulate incident</h3>
                     <label style="font-size:11px;display:block;margin-bottom:4px;">Test name</label>
                     <input type="text" id="wf-sim-name" class="login-input" value="[FLAKY] checkout payment" style="margin-bottom:8px;font-size:11px;">
@@ -1885,15 +1985,15 @@
                     <input type="text" id="wf-sim-status" class="login-input" value="Critical" style="margin-bottom:8px;font-size:11px;">
                     <label style="font-size:11px;display:block;margin-bottom:4px;">Error</label>
                     <input type="text" id="wf-sim-error" class="login-input" value="timeout waiting for upstream" style="margin-bottom:8px;font-size:11px;">
-                    <button type="button" class="btn-secondary wf-edit-only" style="width:100%;margin-bottom:10px;" onclick="simulateWorkflow()">Run simulation</button>
+                    <button type="button" class="btn-secondary" style="width:100%;margin-bottom:10px;" onclick="simulateWorkflow()">Run simulation</button>
                     <pre id="workflow-simulate-result" class="workflow-simulate-result"></pre>
                     <h3 style="margin:16px 0 10px;color:#58a6ff;font-size:13px;">Workflow quick guide</h3>
-                    <p><strong>Trigger</strong> — One entry node per graph when a CI alert is ingested.</p>
-                    <p><strong>Condition</strong> — Branch on <code>[FLAKY]</code>, <code>[PERF]</code>, status, or error text. <span style="color:#3fb950">Top</span> output = true, <span style="color:#f85149">bottom</span> = false.</p>
-                    <p><strong>Action</strong> — Native plugin (Slack, Jira, K8s…). Must be in gateway routing matrix + routing-enabled in Plugin Engine.</p>
-                    <p style="margin-top:10px;"><strong>Example</strong> — Trigger → [FLAKY]? → Slack (yes) / Jira (no).</p>
+                    <p><strong>Trigger</strong> - One entry node per graph when a CI alert is ingested.</p>
+                    <p><strong>Condition</strong> - Branch on <code>[FLAKY]</code>, <code>[PERF]</code>, status, or error text. <span style="color:#3fb950">Top</span> output = true, <span style="color:#f85149">bottom</span> = false.</p>
+                    <p><strong>Action</strong> - Native plugin (Slack, Jira, webhook…). Its output continues the graph, so actions and conditions can be chained. The plugin must be in the gateway routing list. Kubernetes restart is not available.</p>
+                    <p style="margin-top:10px;"><strong>Example</strong> - Trigger → [FLAKY]? → Slack (yes) / Jira (no).</p>
                     <p><strong>Enable workflow</strong> + Save = DAG live. Unchecked = draft (legacy AUTO-RUN still runs).</p>
-                    <p><strong>Simulate</strong> — Dry-run without calling vendors. <strong>Reset</strong> — delete DAG.</p>
+                    <p><strong>Simulate</strong> - Dry-run without calling vendors. <strong>Reset</strong> - delete DAG.</p>
                     <p class="form-hint" style="margin-top:12px;"><a href="#" class="text-link" onclick="openWorkflowHelpTopic();return false;">Full guide in Documentation →</a></p>
                 </aside>
             </div>
@@ -1968,6 +2068,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
-    <script type="module" src="app.js?v=1.0.92-activity-groups"></script>
+    <script type="module" src="app.js?v=1.0.103-open-workflow"></script>
 </body>
 </html>

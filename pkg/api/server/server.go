@@ -99,9 +99,7 @@ func jwtAuthMiddleware(config *core.Config, requirement any, next http.HandlerFu
 		}
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			return jwtKey, nil
-		})
+		token, err := jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 
 		if err != nil || !token.Valid {
 			writeJSONError(w, "Invalid token", http.StatusUnauthorized)

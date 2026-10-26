@@ -1,5 +1,5 @@
 /**
- * Unified pipeline report viewer — full HTML report from GET /api/reports/{runId}
+ * Unified pipeline report viewer - full HTML report from GET /api/reports/{runId}
  */
 import { fetchWithAuth, parseApiJson } from './api.js';
 import { notify } from './ui.js';
@@ -16,7 +16,7 @@ function escapeHtml(s) {
 
 function formatDuration(ms) {
     const n = Number(ms) || 0;
-    if (n <= 0) return '—';
+    if (n <= 0) return '-';
     if (n < 1000) return `${n}ms`;
     const sec = Math.floor(n / 1000);
     const min = Math.floor(sec / 60);
@@ -90,7 +90,7 @@ function displayTestName(test) {
     if (flat.includes('/')) {
         return flat.split('/').pop() || n;
     }
-    return n || '—';
+    return n || '-';
 }
 
 function suiteKeyFor(test) {
@@ -211,9 +211,9 @@ function renderReportHtml(data) {
         return `
         <tr class="ur-test-row ${statusRowClass(t.status)}">
             <td class="ur-col-status"><span class="ur-status-pill ur-status-pill--${escapeHtml(t.status)}">${statusLabel(t.status)}</span></td>
-            <td class="ur-col-name">${escapeHtml(t.name || '—')}</td>
+            <td class="ur-col-name">${escapeHtml(t.name || '-')}</td>
             <td class="ur-col-duration">${formatDuration(t.duration_ms)}</td>
-            <td class="ur-col-inc">${t.incident_id ? `#${t.incident_id}` : '—'}</td>
+            <td class="ur-col-inc">${t.incident_id ? `#${t.incident_id}` : '-'}</td>
         </tr>${logRow}`;
     }).join('');
 

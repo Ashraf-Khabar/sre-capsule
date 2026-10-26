@@ -40,7 +40,7 @@ func handleProjectWorkflow(config *core.Config) http.HandlerFunc {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := &Claims{}
-		_, _ = jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+		_, _ = jwt.ParseWithClaims(tokenString, claims, jwtSigningKey)
 
 		if !core.UserCanAccessProject(claims.Username, claims.Role, projectID) {
 			writeJSONError(w, "Access denied", http.StatusForbidden)
@@ -52,10 +52,6 @@ func handleProjectWorkflow(config *core.Config) http.HandlerFunc {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
-			if !core.CanManageWorkflow(claims.Role) {
-				writeJSONError(w, "Workflow simulate requires Lead, Manager, or Platform Admin", http.StatusForbidden)
-				return
-			}
 			handleSimulateWorkflow(w, r, projectID)
 			return
 		}
@@ -65,13 +61,13 @@ func handleProjectWorkflow(config *core.Config) http.HandlerFunc {
 			handleGetWorkflow(w, r, projectID, claims)
 		case http.MethodPut:
 			if !core.CanManageWorkflow(claims.Role) {
-				writeJSONError(w, "Workflow edit requires Lead, Manager, or Platform Admin", http.StatusForbidden)
+				writeJSONError(w, "Workflow edit requires Lead or Manager", http.StatusForbidden)
 				return
 			}
 			handlePutWorkflow(w, r, projectID)
 		case http.MethodDelete:
 			if !core.CanManageWorkflow(claims.Role) {
-				writeJSONError(w, "Workflow edit requires Lead, Manager, or Platform Admin", http.StatusForbidden)
+				writeJSONError(w, "Workflow edit requires Lead or Manager", http.StatusForbidden)
 				return
 			}
 			handleDeleteWorkflow(w, projectID)
@@ -185,6 +181,9 @@ func handleSimulateWorkflow(w http.ResponseWriter, r *http.Request, projectID st
 		return
 	}
 	_, allowed := projectAllowedPathsByID(projectID)
+	if allowed == nil {
+		allowed = map[string]bool{}
+	}
 	wctx := integrations.WorkflowContext{
 		Incident: integrations.IncidentContext{
 			Name:   payload.Name,
