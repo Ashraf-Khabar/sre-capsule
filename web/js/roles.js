@@ -211,7 +211,6 @@ export function accessDeniedMessage(viewId) {
         dashboard: 'Dashboard',
         suite: 'Suite health',
         activity: 'Activity',
-        unowned: 'Unowned',
         finops: 'FinOps Intelligence',
         organizations: 'Workspaces',
         management: 'IAM Access',

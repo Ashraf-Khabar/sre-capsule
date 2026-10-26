@@ -29,12 +29,18 @@ function formatSummaryDuration(ms) {
     return formatDuration(ms);
 }
 
+function statusCase(value) {
+    const text = String(value || '').trim().toLowerCase();
+    if (!text) return '';
+    return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function statusLabel(status) {
     const s = String(status || '').toLowerCase();
-    if (s === 'pass') return 'PASS';
-    if (s === 'skip') return 'SKIP';
-    if (s === 'flaky') return 'FLAKY';
-    return 'FAIL';
+    if (s === 'pass') return 'Pass';
+    if (s === 'skip') return 'Skip';
+    if (s === 'flaky') return 'Flaky';
+    return 'Fail';
 }
 
 function statusRowClass(status) {
@@ -192,7 +198,7 @@ function renderSuiteTreeHtml(tests) {
 function renderReportHtml(data) {
     const passed = data.status === 'passed';
     const headerClass = passed ? 'ur-header ur-header--passed' : 'ur-header ur-header--failed';
-    const statusText = passed ? 'ALL TESTS PASSED' : 'FAILURES DETECTED';
+    const statusText = passed ? 'All tests passed' : 'Failures detected';
     const sum = data.summary || {};
     const tests = Array.isArray(data.tests) ? data.tests : [];
 
@@ -220,7 +226,7 @@ function renderReportHtml(data) {
         <header class="${headerClass}">
             <div class="ur-header-top">
                 <span class="ur-header-status">${statusText}</span>
-                <span class="ur-header-outcome">${escapeHtml(String(data.outcome || '').toUpperCase())}</span>
+                <span class="ur-header-outcome">${escapeHtml(statusCase(data.outcome || ''))}</span>
             </div>
             <h1 class="ur-header-project">${escapeHtml(data.project_name)}</h1>
             <p class="ur-header-meta">

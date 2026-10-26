@@ -8,7 +8,7 @@
     <link rel="icon" href="/assets/logo.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap">
-    <link rel="stylesheet" href="/style.css?v=1.0.89-activity-read">
+    <link rel="stylesheet" href="/style.css?v=1.0.94-toast">
     <script>
         try {
             if (localStorage.getItem('sre-sidebar-collapsed') === '1') {
@@ -23,7 +23,7 @@
 </head>
 
 <body>
-    <div id="notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 100000; display: flex; flex-direction: column; gap: 10px;"></div>
+    <div id="notification-container" class="notification-container"></div>
 
     <div id="analytics-layout-modal" class="analytics-layout-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="analytics-modal-title">
         <div class="analytics-layout-modal-backdrop" onclick="closeAnalyticsLayoutModal(true)"></div>
@@ -557,69 +557,49 @@
             </section>
 
             <section id="view-activity" class="view-section executive-view">
-                <div id="activity-index">
-                    <div class="header-bar">
-                        <div>
-                            <h1 class="executive-view__title">Activity</h1>
-                            <p class="executive-view__subtitle">All suites and alerts. Filter the list, then open one history.</p>
-                        </div>
-                    </div>
-                    <div class="executive-toolbar">
-                        <select id="activity-project-filter" class="login-input" aria-label="Gateway"></select>
-                        <select id="activity-type-filter" class="login-input" aria-label="Type">
-                            <option value="">Suites and alerts</option>
-                            <option value="suite">Suites</option>
-                            <option value="alert">Alerts</option>
-                        </select>
-                        <select id="activity-kind-filter" class="login-input" aria-label="Action">
-                            <option value="">All actions</option>
-                            <option value="opened">Opened</option>
-                            <option value="acknowledged">Acknowledged</option>
-                            <option value="mitigated">Mitigated</option>
-                            <option value="comment">Message</option>
-                            <option value="selector">Selector</option>
-                            <option value="runbook">Runbook</option>
-                            <option value="patch">Patch</option>
-                            <option value="resolved">Resolved</option>
-                            <option value="postmortem">Postmortem</option>
-                        </select>
-                        <input id="activity-search" class="login-input" type="search" placeholder="Suite, alert, message, or person" aria-label="Search" autocomplete="off">
-                        <button type="button" class="btn-secondary" id="activity-refresh">Refresh</button>
-                    </div>
-                    <p id="activity-note" class="dora-budget__hint" hidden>The newest 400 incidents are included.</p>
-                    <div class="kpi-card-grid executive-kpi-grid" id="activity-kpis"></div>
-                    <div class="data-card">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Name</th>
-                                    <th>Gateway</th>
-                                    <th>Status</th>
-                                    <th>When</th>
-                                    <th>Summary</th>
-                                </tr>
-                            </thead>
-                            <tbody id="activity-table-body"></tbody>
-                        </table>
-                        <p id="activity-empty" class="dora-budget__hint" hidden>No actions recorded yet.</p>
+                <div class="header-bar">
+                    <div>
+                        <h1 class="executive-view__title">Activity</h1>
+                        <p class="executive-view__subtitle">History by suite and gateway. Select a row to read the actions.</p>
                     </div>
                 </div>
-                <div id="activity-detail" hidden>
-                    <div class="header-bar">
-                        <div>
-                            <button type="button" class="btn btn-secondary btn-sm" id="activity-back">← Activity</button>
-                            <h1 class="executive-view__title" id="activity-detail-title">History</h1>
-                            <p class="executive-view__subtitle" id="activity-detail-meta"></p>
-                        </div>
-                        <div class="activity-detail__actions">
-                            <button type="button" class="btn btn-secondary btn-sm" id="activity-collapse">Collapse all</button>
-                            <button type="button" class="btn btn-secondary btn-sm" id="activity-expand">Expand all</button>
-                            <button type="button" class="btn btn-secondary btn-sm" id="activity-export">Export</button>
-                        </div>
-                    </div>
-                    <ol id="activity-steps" class="activity-flow"></ol>
+                <div class="executive-toolbar">
+                    <select id="activity-project-filter" class="login-input" aria-label="Gateway"></select>
+                    <select id="activity-kind-filter" class="login-input" aria-label="Action">
+                        <option value="">All actions</option>
+                        <option value="opened">Opened</option>
+                        <option value="acknowledged">Acknowledged</option>
+                        <option value="mitigated">Mitigated</option>
+                        <option value="comment">Message</option>
+                        <option value="selector">Selector</option>
+                        <option value="runbook">Runbook</option>
+                        <option value="patch">Patch</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="postmortem">Postmortem</option>
+                    </select>
+                    <input id="activity-search" class="login-input" type="search" placeholder="Suite, gateway, incident, or message" aria-label="Search" autocomplete="off">
+                    <button type="button" class="btn-secondary" id="activity-refresh">Refresh</button>
+                    <button type="button" class="btn-secondary" onclick="exportHistoryPDF()">History PDF</button>
                 </div>
+                <p id="activity-note" class="dora-budget__hint" hidden>The newest 400 incidents are included.</p>
+                <div class="kpi-card-grid executive-kpi-grid" id="activity-kpis"></div>
+                <div class="data-card">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Gateway</th>
+                                <th>Suite</th>
+                                <th>Incidents</th>
+                                <th>Last action</th>
+                                <th>When</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activity-table-body"></tbody>
+                    </table>
+                    <p id="activity-empty" class="dora-budget__hint" hidden>No actions recorded yet.</p>
+                </div>
+                <p id="activity-detail-hint" class="dora-budget__hint">Select a suite to read its history.</p>
+                <div id="activity-detail" class="activity-detail" hidden></div>
             </section>
 
             <section id="view-unowned" class="view-section executive-view">
@@ -1902,7 +1882,7 @@
                     <label style="font-size:11px;display:block;margin-bottom:4px;">Test name</label>
                     <input type="text" id="wf-sim-name" class="login-input" value="[FLAKY] checkout payment" style="margin-bottom:8px;font-size:11px;">
                     <label style="font-size:11px;display:block;margin-bottom:4px;">Status</label>
-                    <input type="text" id="wf-sim-status" class="login-input" value="CRITICAL" style="margin-bottom:8px;font-size:11px;">
+                    <input type="text" id="wf-sim-status" class="login-input" value="Critical" style="margin-bottom:8px;font-size:11px;">
                     <label style="font-size:11px;display:block;margin-bottom:4px;">Error</label>
                     <input type="text" id="wf-sim-error" class="login-input" value="timeout waiting for upstream" style="margin-bottom:8px;font-size:11px;">
                     <button type="button" class="btn-secondary wf-edit-only" style="width:100%;margin-bottom:10px;" onclick="simulateWorkflow()">Run simulation</button>
@@ -1988,6 +1968,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
-    <script type="module" src="app.js?v=1.0.89-activity-read"></script>
+    <script type="module" src="app.js?v=1.0.92-activity-groups"></script>
 </body>
 </html>

@@ -1132,11 +1132,11 @@ function renderPluginList(plugins, query = '', category = 'all') {
             const autoOn = p.auto_run !== false && String(p.status).toLowerCase() === 'active';
             const gatewayOn = isPluginRoutingEligible(p);
             const autoBadge = autoOn
-                ? '<span class="plugin-badge plugin-badge--auto-on">AUTO-RUN ON</span>'
-                : '<span class="plugin-badge">AUTO-RUN OFF</span>';
+                ? '<span class="plugin-badge plugin-badge--auto-on">Auto-run on</span>'
+                : '<span class="plugin-badge">Auto-run off</span>';
             const gatewayBadge = gatewayOn
-                ? '<span class="plugin-badge plugin-badge--gateway-on">GATEWAYS ON</span>'
-                : '<span class="plugin-badge">GATEWAYS OFF</span>';
+                ? '<span class="plugin-badge plugin-badge--gateway-on">Gateways on</span>'
+                : '<span class="plugin-badge">Gateways off</span>';
             const autoToggleBtn = canToggleAuto
                 ? `<button type="button" class="btn-secondary plugin-btn-compact" onclick="window.togglePluginAutoRun('${safePath}', ${!autoOn})">${autoOn ? 'Disable auto-run' : 'Enable auto-run'}</button>`
                 : '';
@@ -1628,7 +1628,7 @@ export async function loadAIUsageView() {
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v || '—'; };
     if (ok && data) {
         if (badge) {
-            badge.textContent = data.enabled ? `${(data.provider || 'AI').toUpperCase()} ON` : 'AI off';
+            badge.textContent = data.enabled ? `${data.provider || 'AI'} on` : 'AI off';
             badge.className = 'intel-badge ' + (data.enabled ? 'intel-badge--on' : 'intel-badge--manual');
         }
         set('ai-usage-provider', data.provider || 'disabled');

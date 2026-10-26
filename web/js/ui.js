@@ -21,25 +21,37 @@ import {
     toggleTheme as engineToggleTheme
 } from './theme-engine.js';
 
-function escapeHtml(s) {
-    return String(s ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
-
 export function notify(message, type = 'success') {
     const container = document.getElementById('notification-container');
     if (!container) return alert(message);
 
     const toast = document.createElement('div');
-    const bgColor = type === 'error' ? 'var(--log-fatal, #b54a4a)' : 'var(--log-pass, #4a7c59)';
+    toast.className = type === 'error' ? 'sre-toast sre-toast--error' : 'sre-toast sre-toast--success';
+    toast.setAttribute('role', 'status');
 
-    toast.style.cssText = `background-color: ${bgColor}; color: #fff; padding: 12px 18px; border-radius: var(--radius-sm, 8px); box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,0.2)); font-weight: 600; font-size: 13px; transition: opacity 0.5s ease; margin-top: 10px; z-index: 100001; max-width: min(420px, 90vw); line-height: 1.4;`;
-    toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+    const text = document.createElement('span');
+    text.textContent = String(message ?? '');
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'sre-toast__close';
+    close.setAttribute('aria-label', 'Close');
+    close.textContent = '×';
+
+    let hideTimer = 0;
+    let gone = false;
+    const dismiss = () => {
+        if (gone) return;
+        gone = true;
+        clearTimeout(hideTimer);
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 200);
+    };
+    close.addEventListener('click', dismiss);
+
+    toast.append(text, close);
     container.appendChild(toast);
-    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 4000);
+    hideTimer = setTimeout(dismiss, 4000);
 }
 
 export function initTheme() {

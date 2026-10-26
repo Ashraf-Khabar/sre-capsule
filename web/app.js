@@ -7,15 +7,15 @@
 import { notify, showConfirmModal, showPromptModal, closeModal, toggleTheme, initSidebar, toggleSidebar } from './js/ui.js';
 import { parseJwt, performLogout, showLoginScreen, fetchWithAuth, parseApiJson, isApiOffline, pingApiServer, resetApiOfflineBanner } from './js/api.js';
 import * as iam from './js/iam.js';
-import * as settings from './js/settings.js';
+import * as settings from './js/settings.js?v=1.0.89-status-case';
 import * as profile from './js/profile.js?v=1.0.63-docs';
 import * as finops from './js/finops.js';
 import * as about from './js/about.js?v=1.0.63-docs';
 import * as analyticsLayout from './js/analytics-layout.js';
 import { applyRoleVisibility, canAccessFinOps, canAccessPlugins, canResolveIncidents, canDeleteIncidents, hasMinRole, roleLabel, canManageTeams, canManageIAM, isAdmin, canAccessView, accessDeniedMessage, defaultViewForRole, canPatchExecutionFlags } from './js/roles.js';
 import * as executionHub from './js/execution-hub.js';
-import * as reportViewer from './js/report-viewer.js?v=1.0.67-no-ai-status';
-import * as workflowEditor from './js/workflow-editor.js';
+import * as reportViewer from './js/report-viewer.js?v=1.0.89-status-case';
+import * as workflowEditor from './js/workflow-editor.js?v=1.0.89-status-case';
 import * as healing from './js/healing.js?v=1.0.83-specs';
 import * as dora from './js/dora.js?v=1.0.62-maint';
 import { setupAutocomplete } from './js/autocomplete.js';
@@ -1343,9 +1343,8 @@ const HISTORY_KIND = {
 };
 
 let activityFlow = { incidents: [] };
-let activitySuites = [];
-let activityOpen = null;
 let activityFiltersBound = false;
+let activitySelected = '';
 
 function activityKindTone(kind) {
     if (kind === 'resolved' || kind === 'selector' || kind === 'patch') return 'success';
@@ -1355,319 +1354,171 @@ function activityKindTone(kind) {
     return 'neutral';
 }
 
-function activityEvents() {
-    const incidents = Array.isArray(activityFlow.incidents) ? activityFlow.incidents : [];
-    const rows = [];
-    incidents.forEach(item => {
-        (item.events || []).forEach(ev => {
-            rows.push({
-                at: ev.at || '',
-                kind: ev.kind || '',
-                actor: ev.actor || '',
-                text: ev.text || '',
-                id: item.id,
-                project: item.project || '',
-                name: item.name || '',
-                status: item.status || '',
-                severity: item.severity || '',
-                archived: !!item.archived,
-            });
-        });
-    });
-    rows.sort((a, b) => String(b.at).localeCompare(String(a.at)) || (Number(b.id) - Number(a.id)));
-    return rows;
+function activitySuiteOf(name) {
+    let raw = String(name || '').replace(/^\[FLAKY\]\s*/i, '');
+    raw = raw.replace(/^\[[^\]]+\]\s*/, '');
+    const nested = raw.indexOf(' > ');
+    if (nested > 0) return raw.slice(0, nested).trim();
+    const robot = raw.indexOf(' - ');
+    if (robot > 0) return raw.slice(0, robot).trim();
+    return raw.trim() || 'Test suite';
 }
 
-function activityPreview(text) {
-    const line = String(text || '').split('\n').map(part => part.trim()).find(Boolean) || '';
-    return line.length > 96 ? `${line.slice(0, 96)}…` : line;
-}
-
-function activityFiltered() {
+function activityIncidentMatches(item) {
     const project = document.getElementById('activity-project-filter')?.value || '';
     const kind = document.getElementById('activity-kind-filter')?.value || '';
     const q = (document.getElementById('activity-search')?.value || '').trim().toLowerCase();
-    return activityEvents().filter(row => {
-        if (project && row.project !== project) return false;
-        if (kind && row.kind !== kind) return false;
-        if (!q) return true;
-        return [row.project, row.name, row.actor, row.text, String(row.id)].join(' ').toLowerCase().includes(q);
+    if (project && (item.project || '') !== project) return false;
+    const events = Array.isArray(item.events) ? item.events : [];
+    if (kind && !events.some(ev => ev.kind === kind)) return false;
+    if (!q) return true;
+    const blob = [item.project, activitySuiteOf(item.name), item.name, item.status, item.severity, String(item.id)]
+        .concat(events.flatMap(ev => [ev.actor, ev.text, ev.kind]))
+        .join(' ')
+        .toLowerCase();
+    return blob.includes(q);
+}
+
+function activityGroups() {
+    const groups = new Map();
+    (Array.isArray(activityFlow.incidents) ? activityFlow.incidents : []).filter(activityIncidentMatches).forEach(item => {
+        const suite = activitySuiteOf(item.name);
+        const project = item.project || '';
+        const key = `${project}\0${suite}`;
+        if (!groups.has(key)) groups.set(key, { key, project, suite, incidents: [] });
+        groups.get(key).incidents.push(item);
     });
+    const rows = [...groups.values()];
+    rows.forEach(group => {
+        const events = group.incidents.flatMap(item => (item.events || []).map(ev => ({ ...ev, id: item.id })));
+        events.sort((a, b) => String(b.at).localeCompare(String(a.at)) || (Number(b.id) - Number(a.id)));
+        group.last = events[0] || null;
+        group.actions = events.length;
+    });
+    rows.sort((a, b) => String(b.last?.at || '').localeCompare(String(a.last?.at || ''))
+        || a.project.localeCompare(b.project)
+        || a.suite.localeCompare(b.suite));
+    return rows;
 }
 
 function fillActivityProjects() {
     const sel = document.getElementById('activity-project-filter');
     if (!sel) return;
     const current = sel.value;
-    const names = [...new Set([
-        ...(activityFlow.incidents || []).map(row => row.project),
-        ...activitySuites.map(row => row.project_name),
-    ].filter(Boolean))].sort();
+    const names = [...new Set((activityFlow.incidents || []).map(row => row.project).filter(Boolean))].sort();
     sel.innerHTML = `<option value="">All gateways</option>${names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
     if (names.includes(current)) sel.value = current;
 }
 
-function activityIndexRows() {
-    const project = document.getElementById('activity-project-filter')?.value || '';
-    const type = document.getElementById('activity-type-filter')?.value || '';
-    const kind = document.getElementById('activity-kind-filter')?.value || '';
-    const q = (document.getElementById('activity-search')?.value || '').trim().toLowerCase();
-    const alerts = type === 'suite' ? [] : activityGroups().map(group => {
-        const last = group.events[group.events.length - 1] || {};
-        return {
-            key: `alert:${group.id}`,
-            type: 'Alert',
-            typeTone: 'danger',
-            name: `#${Number(group.id)} · ${group.name || ''}`,
-            project: group.project,
-            status: group.status || 'open',
-            statusTone: activityKindTone(last.kind),
-            when: last.at || '',
-            summary: activityPreview(last.text) || (HISTORY_KIND[last.kind] || 'Alert'),
-        };
-    });
-    const suites = (type === 'alert' || kind) ? [] : activitySuites.filter(card => {
-        if (project && card.project_name !== project) return false;
-        const last = card.last || {};
-        const names = []
-            .concat(card.new_failures || [])
-            .concat(card.fixed_since_previous || [])
-            .concat((card.slowest || []).map(row => row.name));
-        const blob = [card.project_name, last.run_id, last.branch, last.outcome, ...names].join(' ').toLowerCase();
-        return !q || blob.includes(q);
-    }).map(card => {
-        const last = card.last || {};
-        const green = !!last.green;
-        return {
-            key: `suite:${encodeURIComponent(card.project_name || '')}`,
-            type: 'Suite',
-            typeTone: 'info',
-            name: card.project_name || '',
-            project: card.project_name || '',
-            status: green ? 'Green' : 'Failing',
-            statusTone: green ? 'success' : 'danger',
-            when: last.started_at || '',
-            summary: `${card.pass_rate || 0}% · ${last.failed || 0}/${last.total || 0} failed`,
-        };
-    });
-    return alerts.concat(suites).sort((a, b) => String(b.when).localeCompare(String(a.when)) || a.name.localeCompare(b.name));
-}
-
-function activityGroups() {
-    const groups = new Map();
-    activityFiltered().forEach(row => {
-        if (!groups.has(row.id)) {
-            groups.set(row.id, {
-                id: row.id,
-                project: row.project,
-                name: row.name,
-                status: row.status,
-                severity: row.severity,
-                archived: row.archived,
-                events: [],
-            });
-        }
-        groups.get(row.id).events.push(row);
-    });
-    const list = [...groups.values()];
-    list.forEach(group => {
-        group.events.sort((a, b) => String(a.at).localeCompare(String(b.at)));
-    });
-    list.sort((a, b) => {
-        const last = group => group.events[group.events.length - 1]?.at || '';
-        return String(last(b)).localeCompare(String(last(a))) || (Number(b.id) - Number(a.id));
-    });
-    return list;
-}
-
-function activityStepHTML(step) {
-    const tone = step.tone || 'neutral';
-    const when = step.when ? `<time>${escapeHtml(step.when)}</time>` : '';
-    const who = step.who ? `<span>${escapeHtml(step.who)}</span>` : '';
-    const preview = step.preview ? `<span class="activity-step__preview">${escapeHtml(step.preview)}</span>` : '';
-    return `<li class="activity-step" data-tone="${tone}">
-        <button type="button" class="activity-step__toggle" onclick="toggleActivityStep(this)">
-            <span class="activity-step__mark kpi-tone-${tone}"></span>
-            <span class="activity-step__label kpi-tone-${tone}">${escapeHtml(step.label)}</span>
-            <span class="activity-step__line">${when}${who}${preview}</span>
-        </button>
-        <div class="activity-step__body">${step.body || ''}</div>
-    </li>`;
-}
-
-function activityNameList(items, withDuration) {
-    if (!items.length) return 'None';
-    return `<ul class="activity-names">${items.map(item => {
-        const name = typeof item === 'string' ? item : item.name;
-        const meta = withDuration ? ` · ${formatSuiteDuration(item.duration_ms)}` : '';
-        return `<li title="${escapeHtml(name)}">${escapeHtml(shortSuiteName(name))}${meta}</li>`;
-    }).join('')}</ul>`;
-}
-
-function alertDetailSteps(item) {
-    return (item.events || []).slice().sort((a, b) => String(a.at).localeCompare(String(b.at))).map(ev => ({
-        tone: activityKindTone(ev.kind),
-        label: HISTORY_KIND[ev.kind] || ev.kind || 'Action',
-        when: ev.at || '',
-        who: ev.actor || '',
-        preview: activityPreview(ev.text),
-        body: ev.text ? escapeHtml(ev.text) : '',
-    }));
-}
-
-function suiteDetailSteps(card) {
-    const last = card.last || {};
-    const green = !!last.green;
-    const failureTitle = green ? 'This run is green' : (card.last_green ? 'New since the last green run' : 'Failures in this run');
-    const runBody = [
-        last.run_id ? `Run ${last.run_id}` : '',
-        last.branch ? `Branch ${last.branch}` : '',
-        last.outcome ? `Outcome ${last.outcome}` : '',
-        `Passed ${last.passed || 0} · Failed ${last.failed || 0} · Total ${last.total || 0}`,
-        `Duration ${formatSuiteDuration(last.duration_ms)}`,
-    ].filter(Boolean).join('\n');
-    return [
-        { tone: green ? 'success' : 'danger', label: 'Last run', when: last.started_at || '', preview: `${card.pass_rate || 0}%`, body: escapeHtml(runBody) },
-        { tone: green ? 'success' : 'danger', label: failureTitle, preview: `${(card.new_failures || []).length} named`, body: activityNameList(card.new_failures || [], false) },
-        { tone: 'success', label: 'Fixed since the previous run', preview: `${(card.fixed_since_previous || []).length} named`, body: activityNameList(card.fixed_since_previous || [], false) },
-        { tone: 'warn', label: 'Slowest', preview: `${(card.slowest || []).length} tests`, body: activityNameList(card.slowest || [], true) },
-    ];
-}
-
-function renderActivityIndex() {
-    const index = document.getElementById('activity-index');
-    const detail = document.getElementById('activity-detail');
-    const body = document.getElementById('activity-table-body');
-    const empty = document.getElementById('activity-empty');
-    const kpis = document.getElementById('activity-kpis');
-    if (!index || !detail || !body || !empty || !kpis) return;
-    index.hidden = false;
-    detail.hidden = true;
-    const rows = activityIndexRows();
-    const type = document.getElementById('activity-type-filter')?.value || '';
-    const events = type === 'suite' ? [] : activityFiltered();
-    const suites = rows.filter(row => row.type === 'Suite').length;
-    const alerts = rows.filter(row => row.type === 'Alert').length;
-    const messages = events.filter(row => row.kind === 'comment').length;
-    const tile = (label, value, tone) => `<article class="kpi-card-premium"><span class="kpi-card-premium__label">${label}</span><span class="kpi-card-premium__value kpi-tone-${tone}">${value}</span></article>`;
-    kpis.innerHTML = [
-        tile('Suites', suites, 'info'),
-        tile('Alerts', alerts, alerts ? 'danger' : 'success'),
-        tile('Actions', events.length, 'neutral'),
-        tile('Messages', messages, 'warn'),
-    ].join('');
-    if (!rows.length) {
-        body.innerHTML = '';
-        empty.hidden = false;
-        const hasAny = activitySuites.length || (activityFlow.incidents || []).length;
-        empty.textContent = hasAny ? 'Nothing matches these filters.' : 'No suites or alerts yet.';
+function renderActivityDetail(group) {
+    const box = document.getElementById('activity-detail');
+    const hint = document.getElementById('activity-detail-hint');
+    if (!box) return;
+    if (!group) {
+        box.hidden = true;
+        box.innerHTML = '';
+        if (hint) hint.hidden = false;
         return;
     }
-    empty.hidden = true;
-    body.innerHTML = rows.map(row => `<tr data-activity-key="${escapeHtml(row.key)}">
-        <td class="kpi-tone-${row.typeTone}">${escapeHtml(row.type)}</td>
-        <td><span class="activity-name" title="${escapeHtml(row.name)}">${escapeHtml(row.name)}</span></td>
-        <td>${escapeHtml(row.project)}</td>
-        <td class="kpi-tone-${row.statusTone}">${escapeHtml(row.status)}</td>
-        <td class="activity-when">${escapeHtml(row.when)}</td>
-        <td><span class="activity-summary" title="${escapeHtml(row.summary)}">${escapeHtml(row.summary)}</span></td>
-    </tr>`).join('');
-}
-
-function renderActivityDetail() {
-    const index = document.getElementById('activity-index');
-    const detail = document.getElementById('activity-detail');
-    const title = document.getElementById('activity-detail-title');
-    const meta = document.getElementById('activity-detail-meta');
-    const steps = document.getElementById('activity-steps');
-    if (!index || !detail || !title || !meta || !steps || !activityOpen) return;
-    index.hidden = true;
-    detail.hidden = false;
-    let blocks = [];
-    if (activityOpen.kind === 'suite') {
-        const card = activitySuites.find(row => row.project_name === activityOpen.project);
-        if (!card) {
-            title.textContent = 'Suite';
-            meta.textContent = 'This suite is no longer in the list.';
-            steps.innerHTML = '';
-            return;
-        }
-        const last = card.last || {};
-        title.textContent = card.project_name || 'Suite';
-        meta.textContent = [last.green ? 'Green' : 'Failing', `${card.pass_rate || 0}% passed`, last.branch].filter(Boolean).join(' · ');
-        blocks = suiteDetailSteps(card);
-    } else {
-        const item = (activityFlow.incidents || []).find(row => Number(row.id) === Number(activityOpen.id));
-        if (!item) {
-            title.textContent = 'Alert';
-            meta.textContent = 'This alert is no longer in the list.';
-            steps.innerHTML = '';
-            return;
-        }
-        title.textContent = `#${Number(item.id)} · ${item.name || ''}`;
-        meta.textContent = [item.project, item.status, item.severity, item.archived ? 'Archived' : ''].filter(Boolean).join(' · ');
-        blocks = alertDetailSteps(item);
-    }
-    steps.innerHTML = blocks.map(activityStepHTML).join('');
+    if (hint) hint.hidden = true;
+    const incidents = [...group.incidents].sort((a, b) => {
+        const last = item => String((item.events || [])[item.events.length - 1]?.at || '');
+        return last(b).localeCompare(last(a)) || (Number(b.id) - Number(a.id));
+    });
+    box.hidden = false;
+    box.innerHTML = incidents.map(item => {
+        const meta = [item.status, item.severity, item.archived ? 'Archived' : ''].filter(Boolean).map(escapeHtml).join(' · ');
+        const steps = (item.events || []).map(ev => {
+            const label = HISTORY_KIND[ev.kind] || ev.kind || 'Action';
+            const who = ev.actor ? `<span class="activity-who">${escapeHtml(ev.actor)}</span>` : '';
+            const text = ev.text ? `<p>${escapeHtml(ev.text)}</p>` : '';
+            return `<li>
+                <div class="activity-step-meta">
+                    <strong class="kpi-tone-${activityKindTone(ev.kind)}">${escapeHtml(label)}</strong>
+                    <time>${escapeHtml(ev.at || '')}</time>
+                    ${who}
+                </div>
+                ${text}
+            </li>`;
+        }).join('');
+        return `<section class="data-card">
+            <h3 class="activity-incident-title">#${Number(item.id)} · ${escapeHtml(item.name || group.suite)}</h3>
+            ${meta ? `<p class="dora-budget__hint">${meta}</p>` : ''}
+            <ol class="activity-steps">${steps}</ol>
+        </section>`;
+    }).join('');
 }
 
 function renderActivityBoard() {
-    if (activityOpen) renderActivityDetail();
-    else renderActivityIndex();
+    const body = document.getElementById('activity-table-body');
+    const empty = document.getElementById('activity-empty');
+    const kpis = document.getElementById('activity-kpis');
+    if (!body || !empty || !kpis) return;
+    const groups = activityGroups();
+    const incidents = groups.reduce((count, group) => count + group.incidents.length, 0);
+    const actions = groups.reduce((count, group) => count + group.actions, 0);
+    const messages = groups.reduce((count, group) => count + group.incidents.reduce((n, item) => n + (item.events || []).filter(ev => ev.kind === 'comment').length, 0), 0);
+    const people = new Set(groups.flatMap(group => group.incidents.flatMap(item => (item.events || []).map(ev => ev.actor).filter(Boolean)))).size;
+    const tile = (label, value, tone) => `<article class="kpi-card-premium"><span class="kpi-card-premium__label">${label}</span><span class="kpi-card-premium__value kpi-tone-${tone}">${value}</span></article>`;
+    kpis.innerHTML = [
+        tile('Suites', groups.length, 'info'),
+        tile('Incidents', incidents, 'neutral'),
+        tile('Actions', actions, 'warn'),
+        tile('Messages', messages, people ? 'success' : 'neutral'),
+    ].join('');
+    const known = (Array.isArray(activityFlow.incidents) ? activityFlow.incidents : []).length;
+    if (!groups.length) {
+        body.innerHTML = '';
+        empty.hidden = false;
+        empty.textContent = known ? 'No actions match these filters.' : 'No actions recorded yet.';
+        activitySelected = '';
+        renderActivityDetail(null);
+        const hint = document.getElementById('activity-detail-hint');
+        if (hint) hint.hidden = true;
+        return;
+    }
+    empty.hidden = true;
+    if (!groups.some(group => group.key === activitySelected)) activitySelected = '';
+    body.innerHTML = groups.map((group, index) => {
+        const label = group.last ? (HISTORY_KIND[group.last.kind] || group.last.kind || 'Action') : '—';
+        const tone = group.last ? activityKindTone(group.last.kind) : 'neutral';
+        const selected = group.key === activitySelected ? ' class="is-selected"' : '';
+        return `<tr${selected} data-activity-index="${index}">
+            <td>${escapeHtml(group.project || '—')}</td>
+            <td><span class="activity-suite" title="${escapeHtml(group.suite)}">${escapeHtml(group.suite)}</span></td>
+            <td>${group.incidents.length}</td>
+            <td><span class="kpi-tone-${tone}">${escapeHtml(label)}</span></td>
+            <td class="activity-when">${escapeHtml(group.last?.at || '')}</td>
+        </tr>`;
+    }).join('');
+    body.querySelectorAll('tr').forEach(row => {
+        row.addEventListener('click', () => {
+            const index = Number(row.getAttribute('data-activity-index'));
+            activitySelected = groups[index] ? groups[index].key : '';
+            renderActivityBoard();
+        });
+    });
+    renderActivityDetail(groups.find(group => group.key === activitySelected) || null);
 }
 
 function bindActivityFilters() {
     if (activityFiltersBound) return;
     activityFiltersBound = true;
-    ['activity-project-filter', 'activity-type-filter', 'activity-kind-filter', 'activity-search'].forEach(id => {
-        document.getElementById(id)?.addEventListener('input', () => { activityOpen = null; renderActivityIndex(); });
-        document.getElementById(id)?.addEventListener('change', () => { activityOpen = null; renderActivityIndex(); });
+    ['activity-project-filter', 'activity-kind-filter', 'activity-search'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', renderActivityBoard);
+        document.getElementById(id)?.addEventListener('change', renderActivityBoard);
     });
     document.getElementById('activity-refresh')?.addEventListener('click', () => window.loadActivity(true));
-    document.getElementById('activity-table-body')?.addEventListener('click', event => {
-        const row = event.target.closest('tr[data-activity-key]');
-        if (row) window.openActivityDetail(row.dataset.activityKey);
-    });
-    document.getElementById('activity-back')?.addEventListener('click', () => window.closeActivityDetail());
-    document.getElementById('activity-collapse')?.addEventListener('click', () => window.setActivitySteps(false));
-    document.getElementById('activity-expand')?.addEventListener('click', () => window.setActivitySteps(true));
-    document.getElementById('activity-export')?.addEventListener('click', () => window.exportActivityDetail());
 }
-
-window.openActivityDetail = function (key) {
-    const split = String(key || '').indexOf(':');
-    const kind = split < 0 ? '' : key.slice(0, split);
-    const value = split < 0 ? '' : key.slice(split + 1);
-    if (kind === 'suite') activityOpen = { kind, project: decodeURIComponent(value) };
-    else activityOpen = { kind: 'alert', id: Number(value) };
-    renderActivityDetail();
-};
-
-window.closeActivityDetail = function () {
-    activityOpen = null;
-    renderActivityIndex();
-};
-
-window.toggleActivityStep = function (button) {
-    button.closest('.activity-step')?.classList.toggle('is-open');
-};
-
-window.setActivitySteps = function (open) {
-    document.querySelectorAll('#activity-steps .activity-step').forEach(step => step.classList.toggle('is-open', !!open));
-};
 
 window.loadActivity = async function (force) {
     const body = document.getElementById('activity-table-body');
     if (!body) return;
     bindActivityFilters();
     try {
-        const [hist, suite] = await Promise.all([
-            fetchWithAuth('/api/history/flow').then(parseApiJson),
-            fetchWithAuth('/api/suite-health?project=all').then(parseApiJson),
-        ]);
-        if (!hist.ok && !suite.ok) {
+        const { ok, data } = await parseApiJson(await fetchWithAuth('/api/history/flow'));
+        if (!ok) {
             activityFlow = { incidents: [] };
-            activitySuites = [];
             renderActivityBoard();
             const empty = document.getElementById('activity-empty');
             if (empty) {
@@ -1676,16 +1527,15 @@ window.loadActivity = async function (force) {
             }
             return;
         }
-        const sig = JSON.stringify([hist.data, suite.data]);
+        const sig = JSON.stringify(data);
         const note = document.getElementById('activity-note');
-        if (note) note.hidden = !(hist.ok && hist.data && hist.data.truncated);
+        if (note) note.hidden = !data?.truncated;
         if (!force && sig === window.__activitySig) {
             renderActivityBoard();
             return;
         }
         window.__activitySig = sig;
-        activityFlow = hist.ok && hist.data && typeof hist.data === 'object' ? hist.data : { incidents: [] };
-        activitySuites = suite.ok && Array.isArray(suite.data) ? suite.data : [];
+        activityFlow = data && typeof data === 'object' ? data : { incidents: [] };
         fillActivityProjects();
         renderActivityBoard();
     } catch {
@@ -1899,68 +1749,6 @@ ${blocks || '<p>No actions recorded yet.</p>'}
 </body></html>`;
 }
 
-function suiteHistoryHTML(card) {
-    const last = card.last || {};
-    const sections = suiteDetailSteps(card).map(step => `<section class="card">
-        <h2 style="color:${({ danger: '#b42318', success: '#067647', warn: '#b54708', info: '#175cd3' })[step.tone] || '#344054'}">${escapeHtml(step.label)}</h2>
-        <div>${step.body || ''}</div>
-    </section>`).join('');
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SRE Capsule — ${escapeHtml(card.project_name || 'Suite')}</title>
-<style>
-body{font-family:Inter,Segoe UI,sans-serif;color:#1c2434;margin:28px;background:#fff}
-.brand{margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#5e6b7c}
-h1{font-size:22px;margin:4px 0}
-.lead{color:#5e6b7c;font-size:12px;margin:0 0 16px}
-.card{border:1px solid #d8dee6;border-left:4px solid #d8dee6;border-radius:10px;padding:14px 16px;margin:0 0 12px}
-h2{font-size:14px;margin:0 0 8px}
-ul{margin:0;padding-left:18px}
-li{margin:4px 0;font-size:13px}
-div{font-size:13px;line-height:1.5;white-space:pre-wrap}
-@media print{body{margin:12mm}}
-</style></head><body>
-<p class="brand">SRE Capsule</p>
-<h1>${escapeHtml(card.project_name || 'Suite')}</h1>
-<p class="lead">${last.green ? 'Green' : 'Failing'} · ${card.pass_rate || 0}% passed · ${escapeHtml(last.started_at || '')}</p>
-${sections}
-</body></html>`;
-}
-
-function openHistoryPrint(html) {
-    const frame = window.open('', '_blank');
-    if (!frame) {
-        notify('Allow pop-ups, then export the history again. In the print dialog, choose Save as PDF.', 'error');
-        return;
-    }
-    frame.document.open();
-    frame.document.write(html);
-    frame.document.close();
-    frame.focus();
-    setTimeout(() => frame.print(), 200);
-}
-
-window.exportActivityDetail = function () {
-    if (!activityOpen) return;
-    if (activityOpen.kind === 'suite') {
-        const card = activitySuites.find(row => row.project_name === activityOpen.project);
-        if (!card) {
-            notify('History export is unavailable.', 'error');
-            return;
-        }
-        openHistoryPrint(suiteHistoryHTML(card));
-        return;
-    }
-    const item = (activityFlow.incidents || []).find(row => Number(row.id) === Number(activityOpen.id));
-    if (!item) {
-        notify('History export is unavailable.', 'error');
-        return;
-    }
-    openHistoryPrint(historyDocumentHTML({
-        generated_at: activityFlow.generated_at,
-        truncated: false,
-        incidents: [item],
-    }));
-};
-
 window.exportHistoryPDF = async function () {
     try {
         const { ok, data } = await parseApiJson(await fetchWithAuth('/api/history/flow'));
@@ -1968,7 +1756,16 @@ window.exportHistoryPDF = async function () {
             notify('History export is unavailable.', 'error');
             return;
         }
-        openHistoryPrint(historyDocumentHTML(data));
+        const frame = window.open('', '_blank');
+        if (!frame) {
+            notify('Allow pop-ups, then export the history again. In the print dialog, choose Save as PDF.', 'error');
+            return;
+        }
+        frame.document.open();
+        frame.document.write(historyDocumentHTML(data));
+        frame.document.close();
+        frame.focus();
+        setTimeout(() => frame.print(), 200);
     } catch {
         notify('History export is unavailable.', 'error');
     }
@@ -2200,12 +1997,12 @@ window.renderIncidentsList = function () {
         const cardStateClass = activeSubAlerts > 0 ? 'pipeline-exec-card--active' : 'pipeline-exec-card--resolved';
 
         const resolvedBadge = activeSubAlerts === 0
-            ? `<span class="exec-status-badge exec-status-badge--resolved">${iconCheck} EXECUTION RESOLVED</span>`
-            : `<span class="exec-status-badge exec-status-badge--active">${iconAlert} ${activeSubAlerts} ACTIVE / ${group.incidents.length} TOTAL</span>`;
+            ? `<span class="exec-status-badge exec-status-badge--resolved">${iconCheck} Execution resolved</span>`
+            : `<span class="exec-status-badge exec-status-badge--active">${iconAlert} ${activeSubAlerts} Active / ${group.incidents.length} Total</span>`;
 
         const subAlertsHTML = group.incidents.map(inc => {
             const isFlaky = inc.name.includes("[FLAKY]");
-            const flakyBadge = isFlaky ? `<span class="kpi-warn" style="margin-right:8px;">${iconWarning} FLAKY</span>` : '';
+            const flakyBadge = isFlaky ? `<span class="kpi-warn" style="margin-right:8px;">${iconWarning} Flaky</span>` : '';
             const cleanName = escapeHtml(inc.name.replace("[FLAKY] ", ""));
             const rawLog = inc.error_logs || inc.error_message || "No logs available.";
             const displayLog = String(rawLog)
@@ -2218,8 +2015,8 @@ window.renderIncidentsList = function () {
             const rowClass = isResolved ? 'is-resolved' : 'is-active';
 
             const subAlertFlag = isResolved
-                ? `<span class="incident-test-badge exec-status-badge exec-status-badge--resolved">${iconCheck} RESOLVED BY ${escapeHtml(inc.resolved_by || 'SYSTEM')}</span>`
-                : `<span class="incident-test-badge exec-status-badge exec-status-badge--active">${iconAlert} ACTIVE TEST</span>`;
+                ? `<span class="incident-test-badge exec-status-badge exec-status-badge--resolved">${iconCheck} Resolved by ${escapeHtml(inc.resolved_by || 'System')}</span>`
+                : `<span class="incident-test-badge exec-status-badge exec-status-badge--active">${iconAlert} Active test</span>`;
 
             const isLogOpen = openLogs.has(String(inc.id));
             const logDisplay = isLogOpen ? 'block' : 'none';

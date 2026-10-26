@@ -32,7 +32,7 @@ const NODE_TEMPLATES = {
                 <label class="wf-cond-label">Operator</label>
                 <select class="wf-cond-match login-input" style="font-size:11px;width:100%;margin:0;"></select>
                 <label class="wf-cond-label">Value</label>
-                <input type="text" class="wf-cond-value login-input" style="font-size:11px;width:100%;margin:0;box-sizing:border-box;" placeholder="e.g. [FLAKY], CRITICAL, timeout">
+                <input type="text" class="wf-cond-value login-input" style="font-size:11px;width:100%;margin:0;box-sizing:border-box;" placeholder="e.g. [FLAKY], Critical, timeout">
             </div></div>`,
         inputs: 1,
         outputs: 2,
@@ -550,7 +550,7 @@ function buildConditionExpr(uiField, match, value) {
     const v = String(value ?? '').trim();
     switch (uiField) {
         case 'status':
-            return { op: 'status', match: match || 'equals', value: v || 'CRITICAL' };
+            return { op: 'status', match: match || 'equals', value: v || 'Critical' };
         case 'error':
             return { op: 'text', match: match || 'contains', field: 'incident.error', value: v };
         case 'console':
@@ -828,7 +828,7 @@ export async function simulateWorkflow() {
     }
     const sample = {
         name: document.getElementById('wf-sim-name')?.value?.trim() || '[FLAKY] checkout payment',
-        status: document.getElementById('wf-sim-status')?.value?.trim() || 'CRITICAL',
+        status: document.getElementById('wf-sim-status')?.value?.trim() || 'Critical',
         error: document.getElementById('wf-sim-error')?.value?.trim() || 'timeout waiting for upstream'
     };
     const res = await fetchWithAuth(`/api/projects/${encodeURIComponent(currentProjectId)}/workflow/simulate`, {
