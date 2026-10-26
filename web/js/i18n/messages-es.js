@@ -38,6 +38,7 @@ export default {
     'nav.dashboard': 'Panel de control',
     'nav.suite': 'Salud de suites',
     'nav.activity': 'Actividad',
+    'nav.unowned': 'Sin responsable',
     'nav.dora': 'Panel DORA',
     'nav.finops': 'Inteligencia FinOps',
     'nav.healing': 'Hub de autocuración',

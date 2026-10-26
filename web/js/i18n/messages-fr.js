@@ -38,6 +38,7 @@ export default {
     'nav.dashboard': 'Tableau de bord',
     'nav.suite': 'Santé des suites',
     'nav.activity': 'Activité',
+    'nav.unowned': 'Sans responsable',
     'nav.dora': 'Tableau de bord DORA',
     'nav.finops': 'Intelligence FinOps',
     'nav.healing': 'Hub d\'auto-réparation',

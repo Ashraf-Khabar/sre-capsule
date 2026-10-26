@@ -38,6 +38,7 @@ export default {
     'nav.dashboard': 'Dashboard',
     'nav.suite': 'Suite health',
     'nav.activity': 'Activity',
+    'nav.unowned': 'Unowned',
     'nav.dora': 'DORA Dashboard',
     'nav.finops': 'FinOps Intelligence',
     'nav.healing': 'Self-Healing Hub',

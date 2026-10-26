@@ -148,6 +148,7 @@ func Start(initialConfig core.Config) {
 	registerExecutionRoutes(config)
 	registerSuiteHealthRoutes(config)
 	registerHistoryRoutes(config)
+	registerUnownedRoutes(config)
 	registerReportRoutes(config)
 	registerIncidentRoutes(config)
 	registerArtifactRoutes(config)

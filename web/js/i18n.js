@@ -1,11 +1,11 @@
 /**
  * Internationalization — locale switching and DOM translation.
  */
-import en from './i18n/messages-en.js?v=1.0.85-activity';
-import fr from './i18n/messages-fr.js?v=1.0.85-activity';
-import es from './i18n/messages-es.js?v=1.0.85-activity';
-import zh from './i18n/messages-zh.js?v=1.0.85-activity';
-import de from './i18n/messages-de.js?v=1.0.85-activity';
+import en from './i18n/messages-en.js?v=1.0.88-unowned';
+import fr from './i18n/messages-fr.js?v=1.0.88-unowned';
+import es from './i18n/messages-es.js?v=1.0.88-unowned';
+import zh from './i18n/messages-zh.js?v=1.0.88-unowned';
+import de from './i18n/messages-de.js?v=1.0.88-unowned';
 
 const LOCALE_KEY = 'srecapsule-locale';
 export const PREF_LANGUAGE_KEY = LOCALE_KEY;
