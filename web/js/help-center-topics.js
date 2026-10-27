@@ -20,7 +20,7 @@ export const EXTENDED_HELP_TOPICS = {
             <thead><tr><th>Node</th><th>Role</th></tr></thead>
             <tbody>
               <tr><td><strong>Trigger</strong></td><td>Single entry when an alert is ingested (one per graph).</td></tr>
-              <tr><td><strong>Condition</strong></td><td>Branches on <code>[FLAKY]</code>/<code>[PERF]</code> tags, status, or error text. <em>Top</em> output = true, <em>bottom</em> = false.</td></tr>
+              <tr><td><strong>Condition</strong></td><td><strong>Incident name</strong> is the stored title (Starts with, Contains, Equals). <strong>Tag</strong> is only FLAKY or PERF. Status, error text, and console logs are separate. <em>Top</em> output = true, <em>bottom</em> = false.</td></tr>
               <tr><td><strong>Action</strong></td><td>Runs one native plugin (Slack, Jira, webhook, …). The output continues the graph, so actions and conditions can be chained. Kubernetes restart is not available.</td></tr>
             </tbody>
           </table>

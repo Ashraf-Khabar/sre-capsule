@@ -1,10 +1,12 @@
 {
   "auto_run": true,
   "config": {
+    "SMTP_BODY": "incident : {{name}}\n\nstatus : {{error}}",
     "SMTP_FROM": "achraf@sre-cap.com",
     "SMTP_HOST": "sandbox.smtp.mailtrap.io",
     "SMTP_PASS": "5768cda5d786f5",
     "SMTP_PORT": "587",
+    "SMTP_SUBJECT": "SRE CAP - {{name}}",
     "SMTP_TO": "admin@arkom.com",
     "SMTP_USER": "11a704f61d6563"
   },

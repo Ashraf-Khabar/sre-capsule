@@ -258,6 +258,7 @@ func (r *Registry) ToAPIList() []map[string]interface{} {
 			"routing_enabled":  m.RoutingEnabled,
 			"trigger_on":       m.TriggerOn,
 			"routing_fields": RoutingFieldsForIntegration(m.Integration),
+			"config_fields":  ConfigFieldsForIntegration(m.Integration),
 			"env":            m.Config,
 			"config":         m.Config,
 		})

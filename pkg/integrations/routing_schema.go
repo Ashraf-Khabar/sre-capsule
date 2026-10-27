@@ -5,41 +5,26 @@ type RoutingField struct {
 	Key         string `json:"key"`
 	Label       string `json:"label"`
 	Placeholder string `json:"placeholder"`
-	InputType   string `json:"input_type"` // text, url, password
+	InputType   string `json:"input_type"` // text, url, password, textarea
+	Group       string `json:"group"`
+	Hint        string `json:"hint,omitempty"`
 }
 
-// RoutingFieldsForIntegration returns per-project routing inputs shown in the gateway UI.
+// RoutingFieldsForIntegration returns the per-gateway slice of that plugin's own form.
 func RoutingFieldsForIntegration(integration string) []RoutingField {
-	switch integration {
-	case "slack":
-		return []RoutingField{{Key: "SLACK_CHANNEL", Label: "Slack Channel", Placeholder: "#alerts-backend"}}
-	case "jira":
-		return []RoutingField{{Key: "JIRA_PROJECT_KEY", Label: "Jira Project Key", Placeholder: "e.g. PAY or SCRUM"}}
-	case "teams":
-		return []RoutingField{{Key: "TEAMS_WEBHOOK_URL", Label: "MS Teams Webhook URL", Placeholder: "https://...", InputType: "url"}}
-	case "pagerduty":
-		return []RoutingField{{Key: "PAGERDUTY_ROUTING_KEY", Label: "PagerDuty Routing Key", Placeholder: "Integration key"}}
-	case "opsgenie":
-		return []RoutingField{{Key: "OPSGENIE_TEAM", Label: "Opsgenie Team (optional)", Placeholder: "team-name"}}
-	case "victorops":
-		return []RoutingField{{Key: "VICTOROPS_ROUTING_URL", Label: "VictorOps Routing URL", Placeholder: "https://...", InputType: "url"}}
-	case "datadog":
-		return []RoutingField{{Key: "DATADOG_TAGS", Label: "Datadog Tags (optional)", Placeholder: "env:ci,service:api"}}
-	case "webhook":
-		return []RoutingField{{Key: "WEBHOOK_URL", Label: "Custom Webhook URL", Placeholder: "https://...", InputType: "url"}}
-	case "sendgrid":
-		return []RoutingField{{Key: "SENDGRID_TO", Label: "Alert Email To", Placeholder: "oncall@company.com"}}
-	case "smtp":
-		return []RoutingField{{Key: "SMTP_TO", Label: "SMTP Alert To", Placeholder: "oncall@company.com"}}
-	case "github":
-		return []RoutingField{
-			{Key: "GITHUB_OWNER", Label: "GitHub Owner", Placeholder: "org"},
-			{Key: "GITHUB_REPO", Label: "GitHub Repository", Placeholder: "repo"},
-			{Key: "GITHUB_WORKFLOW_ID", Label: "Workflow ID or file name", Placeholder: "ci.yml"},
+	var out []RoutingField
+	for _, f := range ConfigFieldsForIntegration(integration) {
+		if !f.Gateway {
+			continue
 		}
-	case "testrail", "zephyr", "xray", "k8s":
-		return []RoutingField{{Key: "WEBHOOK_URL", Label: "Webhook URL", Placeholder: "https://...", InputType: "url"}}
-	default:
-		return nil
+		out = append(out, RoutingField{
+			Key:         f.Key,
+			Label:       f.Label,
+			Placeholder: f.Placeholder,
+			InputType:   f.InputType,
+			Group:       f.Group,
+			Hint:        f.Hint,
+		})
 	}
+	return out
 }

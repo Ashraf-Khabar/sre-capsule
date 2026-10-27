@@ -830,29 +830,157 @@ export async function loadActivePluginsForRouting() {
     }
 }
 
+const PLUGIN_TEMPLATE_HINT = 'Placeholders: {{name}} {{status}} {{error}} {{console}}';
+
 function routingFieldsForIntegrationClient(integration) {
+    const message = (key, label, placeholder) => ({ key, label, placeholder, input_type: 'textarea', group: 'message', hint: PLUGIN_TEMPLATE_HINT });
     const map = {
-        slack: [{ key: 'SLACK_CHANNEL', label: 'Slack Channel', placeholder: '#alerts-backend' }],
-        jira: [{ key: 'JIRA_PROJECT_KEY', label: 'Jira Project Key', placeholder: 'SCRUM' }],
-        teams: [{ key: 'TEAMS_WEBHOOK_URL', label: 'MS Teams Webhook URL', placeholder: 'https://...', input_type: 'url' }],
-        pagerduty: [{ key: 'PAGERDUTY_ROUTING_KEY', label: 'PagerDuty Routing Key', placeholder: 'Integration key' }],
-        opsgenie: [{ key: 'OPSGENIE_TEAM', label: 'Opsgenie Team (optional)', placeholder: 'team-name' }],
-        victorops: [{ key: 'VICTOROPS_ROUTING_URL', label: 'VictorOps Routing URL', placeholder: 'https://...', input_type: 'url' }],
-        datadog: [{ key: 'DATADOG_TAGS', label: 'Datadog Tags (optional)', placeholder: 'env:ci' }],
-        webhook: [{ key: 'WEBHOOK_URL', label: 'Custom Webhook URL', placeholder: 'https://...', input_type: 'url' }],
-        sendgrid: [{ key: 'SENDGRID_TO', label: 'Alert Email To', placeholder: 'oncall@company.com' }],
-        smtp: [{ key: 'SMTP_TO', label: 'SMTP Alert To', placeholder: 'oncall@company.com' }],
-        github: [
-            { key: 'GITHUB_OWNER', label: 'GitHub Owner', placeholder: 'org' },
-            { key: 'GITHUB_REPO', label: 'GitHub Repository', placeholder: 'repo' },
-            { key: 'GITHUB_WORKFLOW_ID', label: 'Workflow ID', placeholder: 'ci.yml' }
+        slack: [
+            { key: 'SLACK_CHANNEL', label: 'Channel', placeholder: '#alerts-backend', group: 'delivery' },
+            { key: 'SLACK_TITLE', label: 'Title', placeholder: 'SRE Alert: {{name}}', group: 'message', hint: PLUGIN_TEMPLATE_HINT },
+            message('SLACK_TEXT', 'Message', '{{error}}')
         ],
-        testrail: [{ key: 'WEBHOOK_URL', label: 'TestRail Webhook URL', placeholder: 'https://...', input_type: 'url' }],
-        zephyr: [{ key: 'WEBHOOK_URL', label: 'Zephyr Webhook URL', placeholder: 'https://...', input_type: 'url' }],
-        xray: [{ key: 'WEBHOOK_URL', label: 'Xray Webhook URL', placeholder: 'https://...', input_type: 'url' }],
-        k8s: [{ key: 'WEBHOOK_URL', label: 'GitOps / Operator Webhook URL', placeholder: 'https://...', input_type: 'url' }]
+        jira: [
+            { key: 'JIRA_PROJECT_KEY', label: 'Project key', placeholder: 'PAY', group: 'delivery' },
+            { key: 'JIRA_SUMMARY', label: 'Summary', placeholder: '[SRE Capsule] {{name}}', group: 'message', hint: PLUGIN_TEMPLATE_HINT },
+            message('JIRA_DESCRIPTION', 'Description', '{{error}}')
+        ],
+        teams: [
+            { key: 'TEAMS_WEBHOOK_URL', label: 'Webhook URL', placeholder: 'https://...', input_type: 'url', group: 'connection' },
+            { key: 'TEAMS_TITLE', label: 'Title', placeholder: 'SRE incident: {{name}}', group: 'message', hint: PLUGIN_TEMPLATE_HINT },
+            message('TEAMS_TEXT', 'Message', '{{error}}')
+        ],
+        pagerduty: [
+            { key: 'PAGERDUTY_ROUTING_KEY', label: 'Routing key', input_type: 'password', group: 'connection' },
+            { key: 'PAGERDUTY_SUMMARY', label: 'Summary', placeholder: '[SRE Capsule] {{name}}', group: 'message', hint: PLUGIN_TEMPLATE_HINT }
+        ],
+        opsgenie: [
+            { key: 'OPSGENIE_TEAM', label: 'Team', placeholder: 'team-name', group: 'delivery' },
+            { key: 'OPSGENIE_MESSAGE', label: 'Message', placeholder: '[SRE Capsule] {{name}}', group: 'message', hint: PLUGIN_TEMPLATE_HINT },
+            message('OPSGENIE_DESCRIPTION', 'Description', '{{error}}')
+        ],
+        victorops: [
+            { key: 'VICTOROPS_ROUTING_URL', label: 'Routing URL', placeholder: 'https://...', input_type: 'url', group: 'connection' },
+            message('VICTOROPS_MESSAGE', 'State message', '[SRE Capsule] {{name}}')
+        ],
+        datadog: [
+            { key: 'DATADOG_TAGS', label: 'Tags', placeholder: 'env:ci,service:api', group: 'delivery' },
+            { key: 'DD_TITLE', label: 'Title', placeholder: 'SRE Capsule: {{name}}', group: 'message', hint: PLUGIN_TEMPLATE_HINT },
+            message('DD_TEXT', 'Text', '{{error}}')
+        ],
+        webhook: [
+            { key: 'WEBHOOK_URL', label: 'Webhook URL', placeholder: 'https://...', input_type: 'url', group: 'connection' },
+            message('WEBHOOK_MESSAGE', 'Message', '{{name}}\n{{error}}')
+        ],
+        sendgrid: [
+            { key: 'SENDGRID_TO', label: 'To', placeholder: 'oncall@company.com', group: 'delivery' },
+            { key: 'SENDGRID_SUBJECT', label: 'Subject', placeholder: '[SRE Capsule] {{name}}', group: 'message', hint: PLUGIN_TEMPLATE_HINT },
+            message('SENDGRID_BODY', 'Body', '{{error}}')
+        ],
+        smtp: [
+            { key: 'SMTP_TO', label: 'To', placeholder: 'oncall@company.com', group: 'delivery' },
+            { key: 'SMTP_SUBJECT', label: 'Subject', placeholder: '[SRE Capsule] {{name}}', group: 'message', hint: PLUGIN_TEMPLATE_HINT },
+            message('SMTP_BODY', 'Body', 'Incident: {{name}}\n\n{{error}}')
+        ],
+        github: [
+            { key: 'GITHUB_OWNER', label: 'Owner', placeholder: 'org', group: 'delivery' },
+            { key: 'GITHUB_REPO', label: 'Repository', placeholder: 'repo', group: 'delivery' },
+            { key: 'GITHUB_WORKFLOW_ID', label: 'Workflow file', placeholder: 'ci.yml', group: 'delivery' },
+            { key: 'GITHUB_REF', label: 'Git ref', placeholder: 'main', group: 'delivery' }
+        ],
+        testrail: [
+            { key: 'TESTRAIL_RUN_ID', label: 'Run ID', group: 'delivery' },
+            { key: 'TESTRAIL_CASE_ID', label: 'Case ID', group: 'delivery' }
+        ],
+        zephyr: [
+            { key: 'ZEPHYR_PROJECT_KEY', label: 'Project key', group: 'delivery' },
+            { key: 'ZEPHYR_TEST_CASE_KEY', label: 'Test case key', group: 'delivery' }
+        ],
+        xray: [
+            { key: 'XRAY_PROJECT_KEY', label: 'Project key', group: 'delivery' },
+            { key: 'XRAY_TEST_KEY', label: 'Test key', group: 'delivery' }
+        ],
+        k8s: [{ key: 'DEPLOYMENT_NAME', label: 'Deployment name', placeholder: 'my-app', group: 'delivery' }]
     };
     return map[(integration || '').toLowerCase()] || [];
+}
+
+function fieldsForPluginConfig(plugin) {
+    const schema = Array.isArray(plugin?.config_fields) ? plugin.config_fields : [];
+    const known = new Set(schema.map(f => f.key));
+    const extra = Object.keys(plugin?.env || {}).filter(k => !known.has(k)).map(k => ({
+        key: k,
+        label: k,
+        input_type: 'text',
+        group: 'connection'
+    }));
+    return schema.concat(extra);
+}
+
+function pluginConfigControl(field, idx, value) {
+    const id = `env-${idx}-${field.key}`;
+    const label = escapePluginHtml(field.label || field.key);
+    const placeholder = escapePluginHtml(field.placeholder || '');
+    const hint = field.hint ? `<p class="plugin-config-hint">${escapePluginHtml(field.hint)}</p>` : '';
+    const safe = escapePluginHtml(value || '');
+    let control;
+    if (field.input_type === 'textarea') {
+        control = `<textarea id="${id}" class="login-input plugin-config-textarea" placeholder="${placeholder}">${safe}</textarea>`;
+    } else {
+        const type = field.input_type === 'password' ? 'password' : (field.input_type === 'url' ? 'url' : 'text');
+        control = `<input type="${type}" id="${id}" class="login-input" placeholder="${placeholder}" value="${safe}">`;
+    }
+    return `<div class="plugin-env-field"><label>${label}</label>${control}${hint}</div>`;
+}
+
+function renderRoutingFieldGroups(fields, idx, values) {
+    const titles = { connection: 'Connection', delivery: 'Delivery', message: 'Message' };
+    const order = ['connection', 'delivery', 'message'];
+    const control = (f) => {
+        const val = values?.[f.key] || '';
+        const label = escapePluginHtml(f.label || f.key);
+        const key = escapePluginHtml(f.key);
+        const placeholder = escapePluginHtml(f.placeholder || '');
+        const hint = f.hint ? `<p class="plugin-config-hint">${escapePluginHtml(f.hint)}</p>` : '';
+        if (f.input_type === 'textarea') {
+            return `<div class="sre-routing-field"><label>${label}</label>
+                <textarea class="login-input sre-route-field plugin-config-textarea" data-row="${idx}" data-key="${key}" placeholder="${placeholder}">${escapePluginHtml(val)}</textarea>${hint}</div>`;
+        }
+        const type = f.input_type === 'password' ? 'password' : (f.input_type === 'url' ? 'url' : 'text');
+        return `<div class="sre-routing-field"><label>${label}</label>
+            <input type="${type}" class="login-input sre-route-field" data-row="${idx}" data-key="${key}"
+            placeholder="${placeholder}" value="${escapePluginHtml(val)}">${hint}</div>`;
+    };
+    const known = new Set(order);
+    let html = '';
+    order.forEach(group => {
+        const rows = fields.filter(f => (f.group || 'delivery') === group);
+        if (!rows.length) return;
+        html += `<section class="plugin-config-group"><h4 class="plugin-config-group__title">${titles[group]}</h4>${rows.map(control).join('')}</section>`;
+    });
+    const rest = fields.filter(f => !known.has(f.group || 'delivery'));
+    if (rest.length) html += rest.map(control).join('');
+    return html;
+}
+
+function renderPluginConfigPanel(plugin, idx) {
+    const fields = fieldsForPluginConfig(plugin);
+    if (!fields.length) return '<p class="form-hint">No external variables required.</p>';
+    const titles = { connection: 'Connection', delivery: 'Delivery', message: 'Message' };
+    const order = ['connection', 'delivery', 'message'];
+    let html = '';
+    order.forEach(group => {
+        const rows = fields.filter(f => (f.group || 'connection') === group);
+        if (!rows.length) return;
+        html += `<section class="plugin-config-group"><h4 class="plugin-config-group__title">${titles[group]}</h4>`;
+        rows.forEach(f => {
+            html += pluginConfigControl(f, idx, plugin.env?.[f.key] || '');
+        });
+        html += '</section>';
+    });
+    const rest = fields.filter(f => !order.includes(f.group || 'connection'));
+    rest.forEach(f => { html += pluginConfigControl(f, idx, plugin.env?.[f.key] || ''); });
+    return html;
 }
 
 function isPluginActiveForRouting(p) {
@@ -914,13 +1042,7 @@ export function renderSRERoutingList() {
             const dis = usedElsewhere ? ' disabled' : '';
             return `<option value="${escapePluginHtml(p.file_path)}"${sel}${dis}>${escapePluginHtml(p.name)}</option>`;
         }).join('');
-        const fieldInputs = fields.map(f => {
-            const val = row.values?.[f.key] || '';
-            const type = f.input_type === 'url' ? 'url' : 'text';
-            return `<div class="sre-routing-field"><label>${escapePluginHtml(f.label)}</label>
-                <input type="${type}" class="login-input sre-route-field" data-row="${idx}" data-key="${escapePluginHtml(f.key)}"
-                placeholder="${escapePluginHtml(f.placeholder || '')}" value="${escapePluginHtml(val)}"></div>`;
-        }).join('');
+        const fieldInputs = renderRoutingFieldGroups(fields, idx, row.values || {});
         return `<div class="sre-routing-card" data-row-idx="${idx}">
             <div class="sre-routing-card__head">
                 <img src="${logo}" alt="" class="sre-routing-card__logo" onerror="this.style.display='none'">
@@ -1129,11 +1251,9 @@ function renderPluginList(plugins, query = '', category = 'all') {
         visible.forEach(p => {
             shown++;
             const safePath = p.file_path.replace(/\\/g, '/');
-            const envKeys = Object.keys(p.env || {});
-            let envs = '';
-            envKeys.forEach(k => {
-                envs += `<div class="plugin-env-field"><label>${escapePluginHtml(k)}</label><input type="text" id="env-${globalIdx}-${k}" class="login-input" value="${escapePluginHtml(p.env[k])}"></div>`;
-            });
+            const configFields = fieldsForPluginConfig(p);
+            const envs = renderPluginConfigPanel(p, globalIdx);
+            const envKeys = configFields.map(f => f.key);
             const desc = p.description || 'No description provided.';
             const logoUrl = `/assets/${folder.toLowerCase()}.png`;
             const triggers = (p.trigger_on || []).join(', ');
@@ -1178,9 +1298,8 @@ function renderPluginList(plugins, query = '', category = 'all') {
                         </div>
                     </div>
                     <div id="config-${globalIdx}" class="plugin-config-panel">
-                        <h4 class="plugin-config-panel__title">Environment Variables</h4>
-                        ${envs || '<p class="form-hint">No external variables required.</p>'}
-                        ${envs ? `<button type="button" class="btn-primary plugin-save-fullwidth" onclick="window.savePluginConfig('${safePath}', ${globalIdx}, '${envKeysAttr}')">${saveIcon} Save</button>` : ''}
+                        ${envs}
+                        ${envKeys.length ? `<button type="button" class="btn-primary plugin-save-fullwidth" onclick="window.savePluginConfig('${safePath}', ${globalIdx}, '${envKeysAttr}')">${saveIcon} Save</button>` : ''}
                     </div>
                     <div id="logs-container-${globalIdx}" class="plugin-logs">
                         <div class="plugin-logs__label">${consoleIcon} STDOUT Console</div>

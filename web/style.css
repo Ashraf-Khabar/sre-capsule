@@ -2887,12 +2887,33 @@ pre {
     display: block;
 }
 
-.plugin-config-panel__title {
+.plugin-config-panel__title,
+.plugin-config-group__title {
     margin: 0 0 15px;
     font-size: 13px;
     text-transform: uppercase;
     color: var(--accent);
     letter-spacing: 0.06em;
+}
+
+.plugin-config-group + .plugin-config-group {
+    margin-top: 8px;
+}
+
+.plugin-config-textarea {
+    width: 100%;
+    min-height: 88px;
+    resize: vertical;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.plugin-config-hint,
+.wf-cond-hint {
+    margin: 6px 0 0;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--text-muted);
 }
 
 .plugin-env-field {

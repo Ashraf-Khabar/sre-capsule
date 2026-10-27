@@ -159,8 +159,8 @@ func runSlack(ctx context.Context, m *Manifest, inc IncidentContext, routing Pro
 		"channel": channel,
 		"attachments": []map[string]any{{
 			"color":  "#ff4444",
-			"title":  fmt.Sprintf("SRE Alert: %s", incidentSummary(inc)),
-			"text":   fmt.Sprintf("Error detected by SRE Capsule.\n\n%s", inc.Error),
+			"title":  alertText(c, "SLACK_TITLE", fmt.Sprintf("SRE Alert: %s", incidentSummary(inc)), inc),
+			"text":   alertText(c, "SLACK_TEXT", fmt.Sprintf("Error detected by SRE Capsule.\n\n%s", inc.Error), inc),
 			"footer": "SRE Capsule Remediation Engine",
 		}},
 	}
@@ -193,8 +193,8 @@ func runJira(ctx context.Context, m *Manifest, inc IncidentContext, routing Proj
 	payload := map[string]any{
 		"fields": map[string]any{
 			"project":     map[string]string{"key": projectKey},
-			"summary":     fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)),
-			"description": fmt.Sprintf("Incident from SRE Capsule.\n\n%s", inc.Error),
+			"summary":     alertText(c, "JIRA_SUMMARY", fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)), inc),
+			"description": alertText(c, "JIRA_DESCRIPTION", fmt.Sprintf("Incident from SRE Capsule.\n\n%s", inc.Error), inc),
 			"issuetype":   map[string]string{"name": issueType},
 		},
 	}
@@ -232,9 +232,9 @@ func runTeams(ctx context.Context, m *Manifest, inc IncidentContext, routing Pro
 		"themeColor": "E81123",
 		"summary":    "SRE Capsule alert",
 		"sections": []map[string]any{{
-			"activityTitle":    fmt.Sprintf("SRE incident: %s", incidentSummary(inc)),
+			"activityTitle":    alertText(c, "TEAMS_TITLE", fmt.Sprintf("SRE incident: %s", incidentSummary(inc)), inc),
 			"activitySubtitle": fmt.Sprintf("Status: %s", inc.Status),
-			"text":             inc.Error,
+			"text":             alertText(c, "TEAMS_TEXT", inc.Error, inc),
 			"markdown":         true,
 		}},
 	}
@@ -248,8 +248,8 @@ func runTeams(ctx context.Context, m *Manifest, inc IncidentContext, routing Pro
 	return Result{Success: false, Logs: fmt.Sprintf("[ERROR] Teams HTTP %d\n%s", code, body)}
 }
 
-func runPagerDuty(ctx context.Context, m *Manifest, inc IncidentContext, _ ProjectRouting) Result {
-	c := mergedConfig(m, ProjectRouting{})
+func runPagerDuty(ctx context.Context, m *Manifest, inc IncidentContext, routing ProjectRouting) Result {
+	c := mergedConfig(m, routing)
 	key := configVal("PAGERDUTY_ROUTING_KEY", c)
 	if key == "" {
 		return Result{Success: false, Logs: "[ERROR] PAGERDUTY_ROUTING_KEY not configured."}
@@ -262,7 +262,7 @@ func runPagerDuty(ctx context.Context, m *Manifest, inc IncidentContext, _ Proje
 		"routing_key":  key,
 		"event_action": "trigger",
 		"payload": map[string]any{
-			"summary":  fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)),
+			"summary":  alertText(c, "PAGERDUTY_SUMMARY", fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)), inc),
 			"source":   "sre-capsule",
 			"severity": "critical",
 		},
@@ -277,8 +277,8 @@ func runPagerDuty(ctx context.Context, m *Manifest, inc IncidentContext, _ Proje
 	return Result{Success: false, Logs: fmt.Sprintf("[ERROR] PagerDuty HTTP %d\n%s", code, body)}
 }
 
-func runOpsgenie(ctx context.Context, m *Manifest, inc IncidentContext, _ ProjectRouting) Result {
-	c := mergedConfig(m, ProjectRouting{})
+func runOpsgenie(ctx context.Context, m *Manifest, inc IncidentContext, routing ProjectRouting) Result {
+	c := mergedConfig(m, routing)
 	key := configVal("OPSGENIE_API_KEY", c)
 	if key == "" {
 		return Result{Success: false, Logs: "[ERROR] OPSGENIE_API_KEY not configured (env or Plugin config)."}
@@ -289,8 +289,8 @@ func runOpsgenie(ctx context.Context, m *Manifest, inc IncidentContext, _ Projec
 	}
 	u := strings.TrimSuffix(apiURL, "/") + "/v2/alerts"
 	payload := map[string]any{
-		"message":     fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)),
-		"description": inc.Error,
+		"message":     alertText(c, "OPSGENIE_MESSAGE", fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)), inc),
+		"description": alertText(c, "OPSGENIE_DESCRIPTION", inc.Error, inc),
 		"priority":    "P1",
 		"source":      "sre-capsule",
 	}
@@ -312,8 +312,8 @@ func runOpsgenie(ctx context.Context, m *Manifest, inc IncidentContext, _ Projec
 	return Result{Success: false, Logs: fmt.Sprintf("[ERROR] Opsgenie HTTP %d\n%s", resp.StatusCode, raw)}
 }
 
-func runVictorOps(ctx context.Context, m *Manifest, inc IncidentContext, _ ProjectRouting) Result {
-	c := mergedConfig(m, ProjectRouting{})
+func runVictorOps(ctx context.Context, m *Manifest, inc IncidentContext, routing ProjectRouting) Result {
+	c := mergedConfig(m, routing)
 	u := configVal("VICTOROPS_ROUTING_URL", c)
 	if u == "" {
 		return Result{Success: false, Logs: "[ERROR] VICTOROPS_ROUTING_URL not configured."}
@@ -321,7 +321,7 @@ func runVictorOps(ctx context.Context, m *Manifest, inc IncidentContext, _ Proje
 	payload := map[string]any{
 		"message_type":        "CRITICAL",
 		"entity_display_name": "SRE Capsule",
-		"state_message":       fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)),
+		"state_message":       alertText(c, "VICTOROPS_MESSAGE", fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)), inc),
 	}
 	code, body, err := httpPostJSON(ctx, u, payload, nil)
 	if err != nil {
@@ -333,8 +333,8 @@ func runVictorOps(ctx context.Context, m *Manifest, inc IncidentContext, _ Proje
 	return Result{Success: false, Logs: fmt.Sprintf("[ERROR] VictorOps HTTP %d\n%s", code, body)}
 }
 
-func runWebhook(ctx context.Context, m *Manifest, inc IncidentContext, _ ProjectRouting) Result {
-	c := mergedConfig(m, ProjectRouting{})
+func runWebhook(ctx context.Context, m *Manifest, inc IncidentContext, routing ProjectRouting) Result {
+	c := mergedConfig(m, routing)
 	u := configVal("WEBHOOK_URL", c)
 	if u == "" {
 		u = configVal("QA_WEBHOOK_URL", c)
@@ -350,6 +350,9 @@ func runWebhook(ctx context.Context, m *Manifest, inc IncidentContext, _ Project
 		"status":   inc.Status,
 		"action":   inc.Action,
 	}
+	if msg := strings.TrimSpace(configVal("WEBHOOK_MESSAGE", c)); msg != "" {
+		payload["message"] = applyIncidentTemplate(msg, inc)
+	}
 	headers := map[string]string{}
 	if auth := configVal("WEBHOOK_AUTH_HEADER", c); auth != "" {
 		headers["Authorization"] = auth
@@ -364,8 +367,8 @@ func runWebhook(ctx context.Context, m *Manifest, inc IncidentContext, _ Project
 	return Result{Success: false, Logs: fmt.Sprintf("[ERROR] Webhook HTTP %d\n%s", code, body)}
 }
 
-func runDatadog(ctx context.Context, m *Manifest, inc IncidentContext, _ ProjectRouting) Result {
-	c := mergedConfig(m, ProjectRouting{})
+func runDatadog(ctx context.Context, m *Manifest, inc IncidentContext, routing ProjectRouting) Result {
+	c := mergedConfig(m, routing)
 	apiKey := configVal("DD_API_KEY", c)
 	if apiKey == "" {
 		return Result{Success: false, Logs: "[ERROR] DD_API_KEY not configured."}
@@ -378,10 +381,13 @@ func runDatadog(ctx context.Context, m *Manifest, inc IncidentContext, _ Project
 		return Result{Success: false, Logs: "[ERROR] DD_SITE must be a hostname such as datadoghq.com."}
 	}
 	payload := map[string]any{
-		"title":            fmt.Sprintf("SRE Capsule: %s", incidentSummary(inc)),
-		"text":             inc.Error,
+		"title":            alertText(c, "DD_TITLE", fmt.Sprintf("SRE Capsule: %s", incidentSummary(inc)), inc),
+		"text":             alertText(c, "DD_TEXT", inc.Error, inc),
 		"alert_type":       "error",
 		"source_type_name": "sre-capsule",
+	}
+	if tags := datadogTags(configVal("DATADOG_TAGS", c)); len(tags) > 0 {
+		payload["tags"] = tags
 	}
 	url := fmt.Sprintf("https://api.%s/api/v1/events", site)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, mustJSON(payload))
@@ -407,8 +413,8 @@ func mustJSON(v any) io.Reader {
 	return bytes.NewReader(b)
 }
 
-func runSendGrid(ctx context.Context, m *Manifest, inc IncidentContext, _ ProjectRouting) Result {
-	c := mergedConfig(m, ProjectRouting{})
+func runSendGrid(ctx context.Context, m *Manifest, inc IncidentContext, routing ProjectRouting) Result {
+	c := mergedConfig(m, routing)
 	apiKey := configVal("SENDGRID_API_KEY", c)
 	from := configVal("SENDGRID_FROM", c)
 	to := configVal("SENDGRID_TO", c)
@@ -418,8 +424,8 @@ func runSendGrid(ctx context.Context, m *Manifest, inc IncidentContext, _ Projec
 	payload := map[string]any{
 		"personalizations": []map[string]any{{"to": []map[string]string{{"email": to}}}},
 		"from":             map[string]string{"email": from},
-		"subject":          fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)),
-		"content":          []map[string]string{{"type": "text/plain", "value": inc.Error}},
+		"subject":          alertText(c, "SENDGRID_SUBJECT", fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)), inc),
+		"content":          []map[string]string{{"type": "text/plain", "value": alertText(c, "SENDGRID_BODY", inc.Error, inc)}},
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.sendgrid.com/v3/mail/send", mustJSON(payload))
 	if err != nil {
@@ -439,8 +445,8 @@ func runSendGrid(ctx context.Context, m *Manifest, inc IncidentContext, _ Projec
 	return Result{Success: false, Logs: fmt.Sprintf("[ERROR] SendGrid HTTP %d\n%s", resp.StatusCode, raw)}
 }
 
-func runGitHub(ctx context.Context, m *Manifest, inc IncidentContext, _ ProjectRouting) Result {
-	c := mergedConfig(m, ProjectRouting{})
+func runGitHub(ctx context.Context, m *Manifest, inc IncidentContext, routing ProjectRouting) Result {
+	c := mergedConfig(m, routing)
 	token := configVal("GITHUB_TOKEN", c)
 	owner := configVal("GITHUB_OWNER", c)
 	repo := configVal("GITHUB_REPO", c)
@@ -482,8 +488,8 @@ func runGitHub(ctx context.Context, m *Manifest, inc IncidentContext, _ ProjectR
 	return Result{Success: false, Logs: fmt.Sprintf("[ERROR] GitHub HTTP %d\n%s", resp.StatusCode, raw)}
 }
 
-func runSMTP(ctx context.Context, m *Manifest, inc IncidentContext, _ ProjectRouting) Result {
-	c := mergedConfig(m, ProjectRouting{})
+func runSMTP(ctx context.Context, m *Manifest, inc IncidentContext, routing ProjectRouting) Result {
+	c := mergedConfig(m, routing)
 	host := configVal("SMTP_HOST", c)
 	port := configVal("SMTP_PORT", c)
 	if port == "" {
@@ -496,8 +502,8 @@ func runSMTP(ctx context.Context, m *Manifest, inc IncidentContext, _ ProjectRou
 	if host == "" || from == "" || to == "" {
 		return Result{Success: false, Logs: "[ERROR] SMTP_HOST, SMTP_FROM, SMTP_TO required."}
 	}
-	subject := fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc))
-	body := fmt.Sprintf("Incident: %s\n\n%s", incidentSummary(inc), inc.Error)
+	subject := alertText(c, "SMTP_SUBJECT", fmt.Sprintf("[SRE Capsule] %s", incidentSummary(inc)), inc)
+	body := alertText(c, "SMTP_BODY", fmt.Sprintf("Incident: %s\n\n%s", incidentSummary(inc), inc.Error), inc)
 	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s", from, to, subject, body))
 	addr := host + ":" + port
 	auth := smtp.PlainAuth("", user, pass, host)

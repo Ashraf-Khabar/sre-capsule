@@ -24,7 +24,8 @@ const NODE_TEMPLATES = {
             <div class="wf-condition-fields" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
                 <label class="wf-cond-label">Field</label>
                 <select class="wf-cond-field login-input" style="font-size:11px;width:100%;margin:0;">
-                    <option value="tag">Tag (incident name)</option>
+                    <option value="name">Incident name</option>
+                    <option value="tag">Tag (FLAKY, PERF)</option>
                     <option value="status">Status</option>
                     <option value="error">Error message</option>
                     <option value="console">Console logs</option>
@@ -32,11 +33,12 @@ const NODE_TEMPLATES = {
                 <label class="wf-cond-label">Operator</label>
                 <select class="wf-cond-match login-input" style="font-size:11px;width:100%;margin:0;"></select>
                 <label class="wf-cond-label">Value</label>
-                <input type="text" class="wf-cond-value login-input" style="font-size:11px;width:100%;margin:0;box-sizing:border-box;" placeholder="e.g. [FLAKY], Critical, timeout">
+                <input type="text" class="wf-cond-value login-input" style="font-size:11px;width:100%;margin:0;box-sizing:border-box;" placeholder="e.g. [RobotFramework], [FLAKY], Critical">
+                <p class="wf-cond-hint"></p>
             </div></div>`,
         inputs: 1,
         outputs: 2,
-        data: { label: 'Condition', nodeType: 'condition', when: { op: 'tag', match: 'prefix', value: '[FLAKY]', field: 'incident.name' } }
+        data: { label: 'Condition', nodeType: 'condition', when: { op: 'text', match: 'prefix', value: '[FLAKY]', field: 'incident.name' } }
     },
     action: {
         html: `<div class="wf-node wf-action"><div class="wf-title">Action</div>
@@ -496,6 +498,7 @@ function importWorkflowToCanvas(workflow, ui) {
     }
 
     if (imported) {
+        refreshConditionNodeHtml();
         bindNodeControls();
         scheduleSyncControlsFromNodeData();
         updateCanvasEmptyState();
@@ -508,6 +511,13 @@ function importWorkflowToCanvas(workflow, ui) {
     }
 
     addDefaultStarterGraph();
+}
+
+function refreshConditionNodeHtml() {
+    document.querySelectorAll('.drawflow-node.condition').forEach((nodeEl) => {
+        const content = nodeEl.querySelector('.drawflow_content_node');
+        if (content) content.innerHTML = NODE_TEMPLATES.condition.html;
+    });
 }
 
 function drawflowImportHasNodes(ui) {
@@ -602,9 +612,22 @@ function addDefaultStarterGraph() {
     updateCanvasEmptyState();
 }
 
+const CONDITION_FIELD_HINTS = {
+    name: 'The title on the incident card. The Flaky badge is ignored, so [RobotFramework] matches a Robot title.',
+    tag: 'Only the tags FLAKY and PERF. RobotFramework is not a tag.',
+    status: 'The incident status, such as Critical or resolved.',
+    error: 'The failure text, not the test title.',
+    console: 'The console log text.'
+};
+
 const CONDITION_MATCH_OPTIONS = {
-    tag: [
+    name: [
         { value: 'prefix', label: 'Starts with' },
+        { value: 'contains', label: 'Contains' },
+        { value: 'not_contains', label: 'Does not contain' },
+        { value: 'equals', label: 'Equals' }
+    ],
+    tag: [
         { value: 'equals', label: 'Equals' },
         { value: 'in', label: 'In list (comma-separated)' }
     ],
@@ -666,11 +689,19 @@ function conditionUiField(when) {
     const op = (when.op || '').toLowerCase();
     const field = (when.field || '').toLowerCase();
     if (op === 'status') return 'status';
+    if (op === 'tag') {
+        const match = String(when.match || '').toLowerCase();
+        const value = String(when.value || '').trim();
+        if (match === 'prefix' || match === 'contains' || match === 'not_contains' || match === 'not-contains') return 'name';
+        if (value.includes('[') || (value && !/^(flaky|perf)$/i.test(value))) return 'name';
+        return 'tag';
+    }
     if (op === 'text') {
         if (field.includes('console')) return 'console';
-        return 'error';
+        if (field.includes('error') || field === 'err' || field.includes('message')) return 'error';
+        return 'name';
     }
-    return 'tag';
+    return 'name';
 }
 
 function populateMatchOptions(matchSel, uiField, selectedMatch) {
@@ -697,7 +728,13 @@ function applyConditionToControls(nodeEl, when) {
     fieldSel.value = uiField;
     populateMatchOptions(matchSel, uiField, when?.match);
     valueInp.value = when?.value != null ? String(when.value) : '';
-    if (!valueInp.value && uiField === 'tag') valueInp.value = '[FLAKY]';
+    if (!valueInp.value && uiField === 'tag') valueInp.value = 'FLAKY';
+    setConditionHint(nodeEl, uiField);
+}
+
+function setConditionHint(nodeEl, uiField) {
+    const hint = nodeEl?.querySelector('.wf-cond-hint');
+    if (hint) hint.textContent = CONDITION_FIELD_HINTS[uiField] || '';
 }
 
 function buildConditionExpr(uiField, match, value) {
@@ -709,9 +746,12 @@ function buildConditionExpr(uiField, match, value) {
             return { op: 'text', match: match || 'contains', field: 'incident.error', value: v };
         case 'console':
             return { op: 'text', match: match || 'contains', field: 'incident.console', value: v };
+        case 'name':
+            return { op: 'text', match: match || 'contains', field: 'incident.name', value: v };
         case 'tag':
+            return { op: 'tag', match: match || 'equals', field: 'incident.name', value: v || 'FLAKY' };
         default:
-            return { op: 'tag', match: match || 'prefix', field: 'incident.name', value: v || '[FLAKY]' };
+            return { op: 'text', match: match || 'contains', field: 'incident.name', value: v };
     }
 }
 
@@ -722,6 +762,7 @@ function bindNodeControls() {
             if (!nodeEl) return;
             const matchSel = nodeEl.querySelector('.wf-cond-match');
             populateMatchOptions(matchSel, fieldSel.value, null);
+            setConditionHint(nodeEl, fieldSel.value);
             syncConditionDataFromNodeEl(nodeEl);
         };
         if (!canEditWorkflow) fieldSel.disabled = true;
@@ -1016,7 +1057,7 @@ export function loadFlakyExampleWorkflow() {
     editor.clear();
     const t = addDrawflowNode('trigger', 80, 140, {}, null);
     const c = addDrawflowNode('condition', 340, 140, {
-        when: { op: 'tag', match: 'prefix', value: '[FLAKY]', field: 'incident.name' }
+        when: { op: 'text', match: 'prefix', value: '[FLAKY]', field: 'incident.name' }
     }, null);
     const slackPath = workflowCatalog.find(p => p.file_path?.includes('slack'))?.file_path || workflowCatalog[0]?.file_path;
     const jiraPath = workflowCatalog.find(p => p.file_path?.includes('jira'))?.file_path;

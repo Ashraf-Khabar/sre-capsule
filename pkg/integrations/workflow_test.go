@@ -103,6 +103,22 @@ func TestEvaluateCondition_textEquals(t *testing.T) {
 	if !EvaluateCondition(absent, ctx) {
 		t.Fatal("expected not_contains match")
 	}
+	named := WorkflowContext{
+		Incident: IncidentContext{Name: "[FLAKY] [RobotFramework] checkout"},
+		Tags:     DeriveTags("[FLAKY] [RobotFramework] checkout"),
+	}
+	starts := &ConditionExpr{Op: "text", Match: "prefix", Field: "incident.name", Value: "[RobotFramework]"}
+	if !EvaluateCondition(starts, named) {
+		t.Fatal("prefix must use the title shown on the card, without the flaky badge")
+	}
+	inside := &ConditionExpr{Op: "text", Match: "contains", Field: "incident.name", Value: "RobotFramework"}
+	if !EvaluateCondition(inside, named) {
+		t.Fatal("contains must find RobotFramework after the flaky prefix")
+	}
+	token := &ConditionExpr{Op: "tag", Match: "equals", Field: "incident.name", Value: "[RobotFramework]"}
+	if !EvaluateCondition(token, named) {
+		t.Fatal("equals [RobotFramework] must match the card title")
+	}
 }
 
 func TestWorkflowEngine_runsActionOnBranch(t *testing.T) {

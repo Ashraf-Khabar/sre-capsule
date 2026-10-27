@@ -7,15 +7,15 @@
 import { notify, showConfirmModal, showPromptModal, closeModal, toggleTheme, initSidebar, toggleSidebar } from './js/ui.js';
 import { parseJwt, performLogout, showLoginScreen, fetchWithAuth, parseApiJson, isApiOffline, pingApiServer, resetApiOfflineBanner } from './js/api.js';
 import * as iam from './js/iam.js?v=1.0.101-workflow-page';
-import * as settings from './js/settings.js?v=1.0.102-workflow-table';
+import * as settings from './js/settings.js?v=1.0.104-plugin-forms';
 import * as profile from './js/profile.js?v=1.0.101-workflow-page';
 import * as finops from './js/finops.js';
-import * as about from './js/about.js?v=1.0.102-workflow-table';
+import * as about from './js/about.js?v=1.0.104-plugin-forms';
 import * as analyticsLayout from './js/analytics-layout.js';
 import { applyRoleVisibility, canAccessFinOps, canAccessPlugins, canResolveIncidents, canDeleteIncidents, hasMinRole, roleLabel, canManageTeams, canManageIAM, isAdmin, canAccessView, accessDeniedMessage, defaultViewForRole, canPatchExecutionFlags } from './js/roles.js?v=1.0.101-workflow-page';
 import * as executionHub from './js/execution-hub.js?v=1.0.101-workflow-page';
 import * as reportViewer from './js/report-viewer.js?v=1.0.99-maint';
-import * as workflowEditor from './js/workflow-editor.js?v=1.0.103-open-workflow';
+import * as workflowEditor from './js/workflow-editor.js?v=1.0.105-name-match';
 import * as healing from './js/healing.js?v=1.0.101-workflow-page';
 import * as dora from './js/dora.js?v=1.0.99-maint';
 import { setupAutocomplete } from './js/autocomplete.js';

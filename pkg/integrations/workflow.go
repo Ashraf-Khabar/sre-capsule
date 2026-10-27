@@ -245,6 +245,63 @@ func EvaluateCondition(expr *ConditionExpr, ctx WorkflowContext) bool {
 	}
 }
 
+// incidentTitles returns the stored title and the title shown on the card.
+// The card hides a leading [FLAKY] or [PERF] badge, so name conditions use both.
+func incidentTitles(name string) []string {
+	raw := strings.TrimSpace(name)
+	visible := raw
+	for {
+		lower := strings.ToLower(visible)
+		next := visible
+		for _, p := range []string{"[flaky] ", "[perf] "} {
+			if strings.HasPrefix(lower, p) {
+				next = strings.TrimSpace(visible[len(p):])
+				break
+			}
+		}
+		if next == visible {
+			break
+		}
+		visible = next
+	}
+	if strings.EqualFold(visible, raw) {
+		return []string{raw}
+	}
+	return []string{raw, visible}
+}
+
+func titleMatches(name, want, match string) bool {
+	want = strings.ToLower(strings.TrimSpace(want))
+	bracket := strings.HasPrefix(want, "[") && strings.HasSuffix(want, "]") && len(want) > 2
+	saw := false
+	for _, title := range incidentTitles(name) {
+		hay := strings.ToLower(title)
+		switch match {
+		case "prefix":
+			if strings.HasPrefix(hay, want) {
+				return true
+			}
+		case "contains":
+			if want != "" && strings.Contains(hay, want) {
+				return true
+			}
+		case "not_contains", "not-contains":
+			saw = true
+			if want != "" && strings.Contains(hay, want) {
+				return false
+			}
+		case "eq", "equals":
+			if hay == want || (bracket && strings.Contains(hay, want)) {
+				return true
+			}
+		}
+	}
+	if saw && (match == "not_contains" || match == "not-contains") {
+		return want != ""
+	}
+	return false
+}
+
 func evalTag(expr *ConditionExpr, ctx WorkflowContext) bool {
 	want := strings.TrimSpace(fmt.Sprint(expr.Value))
 	match := strings.ToLower(expr.Match)
@@ -253,20 +310,22 @@ func evalTag(expr *ConditionExpr, ctx WorkflowContext) bool {
 	}
 	field := strings.ToLower(strings.TrimSpace(expr.Field))
 	field = strings.TrimPrefix(field, "incident.")
-	if match == "prefix" && (field == "" || field == "name") {
-		return strings.HasPrefix(strings.ToLower(ctx.Incident.Name), strings.ToLower(want))
+	if (field == "" || field == "name") && titleMatches(ctx.Incident.Name, want, match) {
+		return true
 	}
 	wantNorm := strings.ToLower(want)
 	for _, t := range ctx.Tags {
 		tagNorm := strings.ToLower(t)
 		switch match {
 		case "eq", "equals":
-			if tagNorm == wantNorm {
+			if tagNorm == wantNorm || (strings.HasPrefix(wantNorm, "[") && tagNorm == strings.Trim(wantNorm, "[]")) {
 				return true
 			}
 		case "in":
 			for _, part := range strings.Split(want, ",") {
-				if tagNorm == strings.ToLower(strings.TrimSpace(part)) {
+				part = strings.ToLower(strings.TrimSpace(part))
+				part = strings.Trim(part, "[]")
+				if tagNorm == part {
 					return true
 				}
 			}
@@ -317,11 +376,17 @@ func workflowFieldValue(inc IncidentContext, field string) string {
 }
 
 func evalText(expr *ConditionExpr, inc IncidentContext) bool {
-	want := strings.ToLower(strings.TrimSpace(fmt.Sprint(expr.Value)))
+	want := strings.TrimSpace(fmt.Sprint(expr.Value))
 	match := strings.ToLower(expr.Match)
 	if match == "" {
 		match = "contains"
 	}
+	field := strings.ToLower(strings.TrimSpace(expr.Field))
+	field = strings.TrimPrefix(field, "incident.")
+	if field == "name" || field == "" {
+		return titleMatches(inc.Name, want, match)
+	}
+	want = strings.ToLower(want)
 	hay := strings.ToLower(workflowFieldValue(inc, expr.Field))
 	switch match {
 	case "contains":
