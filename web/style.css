@@ -8219,6 +8219,13 @@ body.workflow-modal-open { overflow: hidden; }
 
 #view-workflow.active {
     min-height: calc(100vh - 32px);
+    max-height: calc(100vh - 32px);
+    overflow: hidden;
+}
+
+#view-workflow .ingestion-table-shell {
+    overflow: auto;
+    max-height: calc(100vh - 220px);
 }
 
 #view-workflow .executive-toolbar,
@@ -8244,9 +8251,16 @@ body.workflow-modal-open { overflow: hidden; }
     margin: 0;
 }
 
+#view-workflow #workflow-editor-host:not([hidden]) {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
 #workflow-page-slot {
     flex: 1;
-    min-height: 680px;
+    min-height: 0;
     display: flex;
 }
 
@@ -8265,7 +8279,7 @@ body.workflow-modal-open { overflow: hidden; }
 #view-workflow .workflow-editor-shell {
     width: 100%;
     height: 100%;
-    min-height: 680px;
+    min-height: 0;
     margin: 0;
     box-shadow: none;
 }
@@ -8275,8 +8289,306 @@ body.workflow-modal-open { overflow: hidden; }
     display: none;
 }
 
-.wf-node.wf-condition {
-    min-width: 260px;
+.wf-node.wf-condition,
+.wf-node.wf-action {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.wf-node-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.wf-node-edit {
+    flex: 0 0 auto;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-muted);
+    color: var(--text-main);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    line-height: 1;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+.wf-node-edit:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.wf-summary {
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--text-main);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.wf-node-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.wf-node-modal[hidden] {
+    display: none;
+}
+
+.wf-node-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--modal-overlay);
+}
+
+.wf-node-modal__card {
+    position: relative;
+    width: min(640px, 100%);
+    max-height: min(820px, calc(100vh - 48px));
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-main);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+}
+
+.wf-node-modal__head,
+.wf-node-modal__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+}
+
+.wf-node-modal__head {
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-main);
+}
+
+.wf-node-modal__head h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.wf-node-modal__close {
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.wf-node-modal__body {
+    padding: 16px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.wf-node-modal__actions {
+    justify-content: flex-end;
+    border-top: 1px solid var(--border-main);
+}
+
+.wf-node-modal__body .login-input,
+.wf-mail-frame .login-input,
+#wf-mail-subject {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+}
+
+.wf-mail-frame {
+    margin-top: 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    overflow: visible;
+    background: #101820;
+}
+
+.wf-mail-brand,
+.wf-mail-foot {
+    background: #0c1218;
+    text-align: center;
+    user-select: none;
+    pointer-events: none;
+}
+
+.wf-mail-brand {
+    padding: 16px 16px 10px;
+}
+
+.wf-mail-brand img {
+    display: block;
+    width: 168px;
+    max-width: 70%;
+    height: auto;
+    margin: 0 auto;
+}
+
+.wf-mail-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #18222c;
+    border-top: 1px solid #2a3544;
+    border-bottom: 1px solid #2a3544;
+}
+
+.wf-mail-toolbar button {
+    border: 1px solid #314050;
+    background: #101820;
+    color: #e7eef6;
+    border-radius: 6px;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.wf-mail-popwrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.wf-mail-ink {
+    font-weight: 700;
+    border-bottom: 3px solid #3b82f6;
+    line-height: 1;
+}
+
+.wf-mail-pop {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 40;
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    background: #101820;
+    border: 1px solid #314050;
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .35);
+}
+
+.wf-mail-pop[hidden] {
+    display: none !important;
+}
+
+.wf-mail-colors {
+    align-items: center;
+}
+
+.wf-mail-toolbar .wf-mail-swatch {
+    width: 22px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 50%;
+}
+
+.wf-mail-swatch--default {
+    color: #e7eef6;
+    font-weight: 700;
+}
+
+.wf-mail-symbols,
+.wf-mail-emojis {
+    display: grid;
+    gap: 4px;
+    width: max-content;
+}
+
+.wf-mail-sizes {
+    display: grid;
+    grid-template-columns: repeat(4, 46px);
+}
+
+.wf-mail-symbols { grid-template-columns: repeat(8, 32px); }
+.wf-mail-emojis { grid-template-columns: repeat(8, 32px); }
+
+.wf-mail-toolbar .wf-mail-pop button {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    font-size: 16px;
+}
+
+.wf-mail-toolbar .wf-mail-sizes button {
+    width: 46px;
+    min-width: 46px;
+    font-size: 12px;
+}
+
+.wf-mail-body ul,
+.wf-mail-body ol {
+    margin: 6px 0;
+    padding-left: 1.4em;
+}
+
+.wf-mail-body ul { list-style: disc; }
+.wf-mail-body ol { list-style: decimal; }
+
+.wf-mail-body code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: #0c1218;
+    border-radius: 4px;
+    padding: 0 4px;
+}
+
+.wf-mail-body pre {
+    margin: 8px 0;
+    padding: 10px 12px;
+    background: #0c1218;
+    border-radius: 8px;
+    overflow: auto;
+    white-space: pre-wrap;
+}
+
+.wf-mail-body pre code {
+    background: none;
+    padding: 0;
+}
+
+.wf-mail-body {
+    min-height: 160px;
+    padding: 16px;
+    color: #e7eef6;
+    font-size: 14px;
+    line-height: 1.5;
+    outline: none;
+    white-space: pre-wrap;
+}
+
+.wf-mail-body:empty::before {
+    content: 'Write the message. Use {{name}} {{status}} {{error}} {{console}}.';
+    color: #8b98a8;
+}
+
+.wf-mail-foot {
+    padding: 10px 16px 14px;
+    color: #8b98a8;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .workflow-editor-shell {
@@ -8311,24 +8623,27 @@ body.workflow-modal-open { overflow: hidden; }
 .workflow-canvas-wrap {
     flex: 1;
     min-width: 0;
-    min-height: 320px;
+    min-height: 0;
     position: relative;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 #drawflow {
     flex: 1;
     width: 100%;
-    min-height: 320px;
+    height: 100%;
+    min-height: 0;
     position: relative;
+    overflow: auto;
     background: var(--wf-canvas-bg) !important;
 }
 
 #drawflow .drawflow {
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 320px;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
     background-color: var(--wf-canvas-bg) !important;
     background-image: radial-gradient(var(--wf-canvas-dot) 1px, transparent 1px) !important;
     background-size: 18px 18px !important;
@@ -8352,12 +8667,41 @@ body.workflow-modal-open { overflow: hidden; }
 #drawflow .drawflow-node:has(.wf-condition) {
     border-color: var(--wf-condition) !important;
     box-shadow: 0 0 0 1px var(--wf-condition-bg), var(--shadow-md) !important;
-    min-width: 280px;
+    width: 220px;
 }
 
 #drawflow .drawflow-node:has(.wf-action) {
     border-color: var(--wf-action) !important;
     box-shadow: 0 0 0 1px var(--wf-action-bg), var(--shadow-md) !important;
+    width: 220px;
+}
+
+.wf-action-config {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    max-height: 240px;
+    overflow: auto;
+}
+
+.wf-action-config:empty {
+    display: none;
+}
+
+.wf-action-group {
+    margin: 8px 0 0;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.wf-action-config textarea.wf-action-field {
+    min-height: 72px;
+    resize: vertical;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 #drawflow .drawflow-node.selected {
@@ -8739,6 +9083,12 @@ body.workflow-modal-open { overflow: hidden; }
     overflow-y: auto;
 }
 .workflow-simulate-result.visible { display: block; }
+
+#drawflow svg.connection {
+    width: 0 !important;
+    height: 0 !important;
+    overflow: visible !important;
+}
 
 #drawflow .connection .main-path {
     stroke: var(--accent) !important;

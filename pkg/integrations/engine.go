@@ -68,7 +68,13 @@ func (e *Engine) runManifest(ctx context.Context, m *Manifest, inc IncidentConte
 		return runGitHub(hctx, m, inc, routing)
 	case "k8s":
 		return runK8sStub(hctx, m, inc, routing)
-	case "testrail", "zephyr", "xray", "qa":
+	case "testrail":
+		return runTestRail(hctx, m, inc, routing)
+	case "zephyr":
+		return runZephyr(hctx, m, inc, routing)
+	case "xray":
+		return runXray(hctx, m, inc, routing)
+	case "qa":
 		return runWebhook(hctx, m, inc, routing)
 	default:
 		return runUnsupported(m.Integration)

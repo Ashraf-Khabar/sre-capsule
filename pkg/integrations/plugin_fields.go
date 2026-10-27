@@ -11,120 +11,184 @@ type PluginField struct {
 	Gateway     bool   `json:"gateway"`
 }
 
-const templateHint = "Placeholders: {{name}} {{status}} {{error}} {{console}}"
+const templateHint = "Placeholders: {{name}} {{status}} {{error}} {{console}}. Set on the workflow action for one gateway."
 
-// ConfigFieldsForIntegration is the Plugin Engine form for this integration.
+func textField(key, label, placeholder, group string, gateway bool) PluginField {
+	return PluginField{Key: key, Label: label, Placeholder: placeholder, Group: group, Gateway: gateway}
+}
+
+func secretField(key, label, group string, gateway bool) PluginField {
+	return PluginField{Key: key, Label: label, InputType: "password", Group: group, Gateway: gateway}
+}
+
+func urlField(key, label, placeholder, group string, gateway bool) PluginField {
+	return PluginField{Key: key, Label: label, Placeholder: placeholder, InputType: "url", Group: group, Gateway: gateway}
+}
+
+func messageField(key, label, placeholder string, area bool) PluginField {
+	f := PluginField{Key: key, Label: label, Placeholder: placeholder, Group: "message", Hint: templateHint}
+	if area {
+		f.InputType = "textarea"
+	}
+	return f
+}
+
+// ConfigFieldsForIntegration is the full form for this integration.
+// Connection and delivery are edited in Plugin Engine. Message fields are edited on the workflow action.
 func ConfigFieldsForIntegration(integration string) []PluginField {
 	switch integration {
 	case "smtp":
 		return []PluginField{
-			{Key: "SMTP_HOST", Label: "SMTP server", Placeholder: "smtp.office365.com", Group: "connection"},
-			{Key: "SMTP_PORT", Label: "Port", Placeholder: "587", Group: "connection"},
-			{Key: "SMTP_USER", Label: "Username", Group: "connection"},
-			{Key: "SMTP_PASS", Label: "Password", InputType: "password", Group: "connection"},
-			{Key: "SMTP_FROM", Label: "From", Placeholder: "sre@company.com", Group: "delivery"},
-			{Key: "SMTP_TO", Label: "To", Placeholder: "oncall@company.com", Group: "delivery", Gateway: true},
-			{Key: "SMTP_SUBJECT", Label: "Subject", Placeholder: "[SRE Capsule] {{name}}", Group: "message", Gateway: true, Hint: templateHint},
-			{Key: "SMTP_BODY", Label: "Body", Placeholder: "Incident: {{name}}\n\n{{error}}", InputType: "textarea", Group: "message", Gateway: true, Hint: templateHint},
+			textField("SMTP_HOST", "SMTP server", "smtp.office365.com", "connection", false),
+			textField("SMTP_PORT", "Port", "587", "connection", false),
+			textField("SMTP_USER", "Username", "", "connection", false),
+			secretField("SMTP_PASS", "Password", "connection", false),
+			textField("SMTP_FROM", "From", "sre@company.com", "delivery", false),
+			textField("SMTP_TO", "To", "oncall@company.com", "delivery", true),
+			textField("SMTP_CC", "Cc", "lead@company.com, manager@company.com", "delivery", true),
+			messageField("SMTP_SUBJECT", "Subject", "[SRE Capsule] {{name}}", false),
+			messageField("SMTP_BODY", "Body", "Incident: {{name}}\nStatus: {{status}}\n\n{{error}}", true),
 		}
 	case "sendgrid":
 		return []PluginField{
-			{Key: "SENDGRID_API_KEY", Label: "API key", InputType: "password", Group: "connection"},
-			{Key: "SENDGRID_FROM", Label: "From", Placeholder: "sre@company.com", Group: "delivery"},
-			{Key: "SENDGRID_TO", Label: "To", Placeholder: "oncall@company.com", Group: "delivery", Gateway: true},
-			{Key: "SENDGRID_SUBJECT", Label: "Subject", Placeholder: "[SRE Capsule] {{name}}", Group: "message", Gateway: true, Hint: templateHint},
-			{Key: "SENDGRID_BODY", Label: "Body", Placeholder: "{{error}}", InputType: "textarea", Group: "message", Gateway: true, Hint: templateHint},
+			secretField("SENDGRID_API_KEY", "API key", "connection", false),
+			textField("SENDGRID_FROM", "From", "sre@company.com", "delivery", false),
+			textField("SENDGRID_FROM_NAME", "From name", "SRE Capsule", "delivery", false),
+			textField("SENDGRID_TO", "To", "oncall@company.com", "delivery", true),
+			textField("SENDGRID_CC", "Cc", "lead@company.com", "delivery", true),
+			messageField("SENDGRID_SUBJECT", "Subject", "[SRE Capsule] {{name}}", false),
+			messageField("SENDGRID_BODY", "Body", "{{name}}\n{{status}}\n\n{{error}}", true),
 		}
 	case "slack":
 		return []PluginField{
-			{Key: "SLACK_WEBHOOK_URL", Label: "Webhook URL", Placeholder: "https://hooks.slack.com/services/...", InputType: "url", Group: "connection"},
-			{Key: "SLACK_CHANNEL", Label: "Channel", Placeholder: "#alerts-backend", Group: "delivery", Gateway: true},
-			{Key: "SLACK_TITLE", Label: "Title", Placeholder: "SRE Alert: {{name}}", Group: "message", Gateway: true, Hint: templateHint},
-			{Key: "SLACK_TEXT", Label: "Message", Placeholder: "{{error}}", InputType: "textarea", Group: "message", Gateway: true, Hint: templateHint},
+			urlField("SLACK_WEBHOOK_URL", "Webhook URL", "https://hooks.slack.com/services/...", "connection", false),
+			textField("SLACK_CHANNEL", "Channel", "#alerts-backend", "delivery", true),
+			textField("SLACK_USERNAME", "Bot name", "SRE Capsule", "delivery", false),
+			textField("SLACK_ICON_EMOJI", "Icon emoji", ":rotating_light:", "delivery", false),
+			textField("SLACK_COLOR", "Attachment color", "#ff4444", "delivery", false),
+			messageField("SLACK_TITLE", "Title", "SRE Alert: {{name}}", false),
+			messageField("SLACK_TEXT", "Message", "Status: {{status}}\n\n{{error}}", true),
 		}
 	case "jira":
 		return []PluginField{
-			{Key: "JIRA_URL", Label: "Jira URL", Placeholder: "https://company.atlassian.net", InputType: "url", Group: "connection"},
-			{Key: "JIRA_EMAIL", Label: "Email", Group: "connection"},
-			{Key: "JIRA_API_TOKEN", Label: "API token", InputType: "password", Group: "connection"},
-			{Key: "JIRA_ISSUE_TYPE", Label: "Issue type", Placeholder: "Bug", Group: "connection"},
-			{Key: "JIRA_PROJECT_KEY", Label: "Project key", Placeholder: "PAY", Group: "delivery", Gateway: true},
-			{Key: "JIRA_SUMMARY", Label: "Summary", Placeholder: "[SRE Capsule] {{name}}", Group: "message", Gateway: true, Hint: templateHint},
-			{Key: "JIRA_DESCRIPTION", Label: "Description", Placeholder: "{{error}}", InputType: "textarea", Group: "message", Gateway: true, Hint: templateHint},
+			urlField("JIRA_URL", "Jira URL", "https://company.atlassian.net", "connection", false),
+			textField("JIRA_EMAIL", "Email", "sre@company.com", "connection", false),
+			secretField("JIRA_API_TOKEN", "API token", "connection", false),
+			textField("JIRA_ISSUE_TYPE", "Issue type", "Bug", "delivery", false),
+			textField("JIRA_PROJECT_KEY", "Project key", "PAY", "delivery", true),
+			textField("JIRA_PRIORITY", "Priority", "Highest", "delivery", true),
+			textField("JIRA_LABELS", "Labels", "sre,ci", "delivery", true),
+			textField("JIRA_ASSIGNEE", "Assignee", "oncall", "delivery", true),
+			textField("JIRA_COMPONENTS", "Components", "checkout", "delivery", true),
+			messageField("JIRA_SUMMARY", "Summary", "[SRE Capsule] {{name}}", false),
+			messageField("JIRA_DESCRIPTION", "Description", "Status: {{status}}\n\n{{error}}\n\n{{console}}", true),
 		}
 	case "teams":
 		return []PluginField{
-			{Key: "TEAMS_WEBHOOK_URL", Label: "Webhook URL", Placeholder: "https://...", InputType: "url", Group: "connection", Gateway: true},
-			{Key: "TEAMS_TITLE", Label: "Title", Placeholder: "SRE incident: {{name}}", Group: "message", Gateway: true, Hint: templateHint},
-			{Key: "TEAMS_TEXT", Label: "Message", Placeholder: "{{error}}", InputType: "textarea", Group: "message", Gateway: true, Hint: templateHint},
+			urlField("TEAMS_WEBHOOK_URL", "Webhook URL", "https://outlook.office.com/webhook/...", "connection", true),
+			textField("TEAMS_THEME_COLOR", "Theme color", "E81123", "delivery", false),
+			messageField("TEAMS_TITLE", "Title", "SRE incident: {{name}}", false),
+			messageField("TEAMS_SUBTITLE", "Subtitle", "Status: {{status}}", false),
+			messageField("TEAMS_TEXT", "Message", "{{error}}", true),
 		}
 	case "pagerduty":
 		return []PluginField{
-			{Key: "PAGERDUTY_ROUTING_KEY", Label: "Routing key", InputType: "password", Group: "connection", Gateway: true},
-			{Key: "PAGERDUTY_API_URL", Label: "Events API URL", Placeholder: "https://events.pagerduty.com/v2/enqueue", InputType: "url", Group: "connection"},
-			{Key: "PAGERDUTY_SUMMARY", Label: "Summary", Placeholder: "[SRE Capsule] {{name}}", Group: "message", Gateway: true, Hint: templateHint},
+			secretField("PAGERDUTY_ROUTING_KEY", "Routing key", "connection", true),
+			urlField("PAGERDUTY_API_URL", "Events API URL", "https://events.pagerduty.com/v2/enqueue", "connection", false),
+			textField("PAGERDUTY_SEVERITY", "Severity", "critical", "delivery", true),
+			textField("PAGERDUTY_SOURCE", "Source", "sre-capsule", "delivery", false),
+			textField("PAGERDUTY_COMPONENT", "Component", "checkout", "delivery", true),
+			textField("PAGERDUTY_GROUP", "Group", "qa", "delivery", true),
+			textField("PAGERDUTY_CLASS", "Class", "test", "delivery", false),
+			messageField("PAGERDUTY_SUMMARY", "Summary", "[SRE Capsule] {{name}}", false),
+			messageField("PAGERDUTY_DETAILS", "Custom details", "{{error}}", true),
 		}
 	case "opsgenie":
 		return []PluginField{
-			{Key: "OPSGENIE_API_KEY", Label: "API key", InputType: "password", Group: "connection"},
-			{Key: "OPSGENIE_API_URL", Label: "API URL", Placeholder: "https://api.opsgenie.com", InputType: "url", Group: "connection"},
-			{Key: "OPSGENIE_TEAM", Label: "Team", Placeholder: "team-name", Group: "delivery", Gateway: true},
-			{Key: "OPSGENIE_MESSAGE", Label: "Message", Placeholder: "[SRE Capsule] {{name}}", Group: "message", Gateway: true, Hint: templateHint},
-			{Key: "OPSGENIE_DESCRIPTION", Label: "Description", Placeholder: "{{error}}", InputType: "textarea", Group: "message", Gateway: true, Hint: templateHint},
+			secretField("OPSGENIE_API_KEY", "API key", "connection", false),
+			urlField("OPSGENIE_API_URL", "API URL", "https://api.opsgenie.com", "connection", false),
+			textField("OPSGENIE_TEAM", "Team", "team-name", "delivery", true),
+			textField("OPSGENIE_PRIORITY", "Priority", "P1", "delivery", true),
+			textField("OPSGENIE_TAGS", "Tags", "sre,ci", "delivery", true),
+			messageField("OPSGENIE_MESSAGE", "Message", "[SRE Capsule] {{name}}", false),
+			messageField("OPSGENIE_DESCRIPTION", "Description", "Status: {{status}}\n\n{{error}}", true),
 		}
 	case "victorops":
 		return []PluginField{
-			{Key: "VICTOROPS_ROUTING_URL", Label: "Routing URL", Placeholder: "https://alert.victorops.com/integrations/generic/...", InputType: "url", Group: "connection", Gateway: true},
-			{Key: "VICTOROPS_MESSAGE", Label: "State message", Placeholder: "[SRE Capsule] {{name}}", InputType: "textarea", Group: "message", Gateway: true, Hint: templateHint},
+			urlField("VICTOROPS_ROUTING_URL", "Routing URL", "https://alert.victorops.com/integrations/generic/...", "connection", true),
+			textField("VICTOROPS_MESSAGE_TYPE", "Message type", "CRITICAL", "delivery", true),
+			textField("VICTOROPS_ENTITY", "Entity", "SRE Capsule", "delivery", true),
+			textField("VICTOROPS_ENTITY_ID", "Entity ID", "sre-capsule", "delivery", false),
+			messageField("VICTOROPS_MESSAGE", "State message", "[SRE Capsule] {{name}}\n{{error}}", true),
 		}
 	case "datadog":
 		return []PluginField{
-			{Key: "DD_API_KEY", Label: "API key", InputType: "password", Group: "connection"},
-			{Key: "DD_SITE", Label: "Site", Placeholder: "datadoghq.com", Group: "connection"},
-			{Key: "DATADOG_TAGS", Label: "Tags", Placeholder: "env:ci,service:api", Group: "delivery", Gateway: true},
-			{Key: "DD_TITLE", Label: "Title", Placeholder: "SRE Capsule: {{name}}", Group: "message", Gateway: true, Hint: templateHint},
-			{Key: "DD_TEXT", Label: "Text", Placeholder: "{{error}}", InputType: "textarea", Group: "message", Gateway: true, Hint: templateHint},
+			secretField("DD_API_KEY", "API key", "connection", false),
+			secretField("DD_APP_KEY", "Application key", "connection", false),
+			textField("DD_SITE", "Site", "datadoghq.com", "connection", false),
+			textField("DATADOG_TAGS", "Tags", "env:ci,service:api", "delivery", true),
+			textField("DD_ALERT_TYPE", "Alert type", "error", "delivery", true),
+			textField("DD_PRIORITY", "Priority", "normal", "delivery", true),
+			textField("DD_SOURCE", "Source type", "sre-capsule", "delivery", false),
+			messageField("DD_TITLE", "Title", "SRE Capsule: {{name}}", false),
+			messageField("DD_TEXT", "Text", "Status: {{status}}\n\n{{error}}", true),
 		}
 	case "github":
 		return []PluginField{
-			{Key: "GITHUB_TOKEN", Label: "Token", InputType: "password", Group: "connection"},
-			{Key: "GITHUB_OWNER", Label: "Owner", Placeholder: "org", Group: "delivery", Gateway: true},
-			{Key: "GITHUB_REPO", Label: "Repository", Placeholder: "repo", Group: "delivery", Gateway: true},
-			{Key: "GITHUB_WORKFLOW_ID", Label: "Workflow file", Placeholder: "ci.yml", Group: "delivery", Gateway: true},
-			{Key: "GITHUB_REF", Label: "Git ref", Placeholder: "main", Group: "delivery", Gateway: true},
+			secretField("GITHUB_TOKEN", "Token", "connection", false),
+			textField("GITHUB_OWNER", "Owner", "org", "delivery", true),
+			textField("GITHUB_REPO", "Repository", "repo", "delivery", true),
+			textField("GITHUB_WORKFLOW_ID", "Workflow file", "ci.yml", "delivery", true),
+			textField("GITHUB_REF", "Git ref", "main", "delivery", true),
+			{Key: "GITHUB_NOTE", Label: "Dispatch note", Placeholder: "Failure {{name}} status {{status}}", Group: "message", Hint: templateHint + " Sent only when filled, as the workflow input named note."},
 		}
 	case "webhook":
 		return []PluginField{
-			{Key: "WEBHOOK_URL", Label: "Webhook URL", Placeholder: "https://...", InputType: "url", Group: "connection", Gateway: true},
-			{Key: "QA_WEBHOOK_URL", Label: "QA webhook URL", Placeholder: "https://...", InputType: "url", Group: "connection", Gateway: true},
-			{Key: "WEBHOOK_AUTH_HEADER", Label: "Authorization header", Placeholder: "Bearer ...", InputType: "password", Group: "connection"},
-			{Key: "WEBHOOK_MESSAGE", Label: "Message", Placeholder: "{{name}}\n{{error}}", InputType: "textarea", Group: "message", Gateway: true, Hint: templateHint},
+			urlField("WEBHOOK_URL", "Webhook URL", "https://...", "connection", true),
+			urlField("QA_WEBHOOK_URL", "QA webhook URL", "https://...", "connection", true),
+			secretField("WEBHOOK_AUTH_HEADER", "Authorization header", "connection", false),
+			textField("WEBHOOK_EVENT", "Event name", "incident.detected", "delivery", true),
+			messageField("WEBHOOK_MESSAGE", "Message", "{{name}}\n{{status}}\n{{error}}", true),
 		}
 	case "testrail":
 		return []PluginField{
-			{Key: "TESTRAIL_URL", Label: "TestRail URL", Placeholder: "https://company.testrail.io", InputType: "url", Group: "connection"},
-			{Key: "TESTRAIL_USER", Label: "User", Group: "connection"},
-			{Key: "TESTRAIL_API_KEY", Label: "API key", InputType: "password", Group: "connection"},
-			{Key: "TESTRAIL_RUN_ID", Label: "Run ID", Group: "delivery", Gateway: true},
-			{Key: "TESTRAIL_CASE_ID", Label: "Case ID", Group: "delivery", Gateway: true},
+			urlField("TESTRAIL_URL", "TestRail URL", "https://company.testrail.io", "connection", false),
+			textField("TESTRAIL_USER", "User", "sre@company.com", "connection", false),
+			secretField("TESTRAIL_API_KEY", "API key", "connection", false),
+			textField("TESTRAIL_PROJECT_ID", "Project ID", "1", "delivery", true),
+			textField("TESTRAIL_RUN_ID", "Run ID", "12", "delivery", true),
+			textField("TESTRAIL_CASE_ID", "Case ID", "34", "delivery", true),
+			textField("TESTRAIL_STATUS_ID", "Status ID", "5", "delivery", true),
+			messageField("TESTRAIL_COMMENT", "Comment", "{{name}}\n{{error}}", true),
 		}
 	case "zephyr":
 		return []PluginField{
-			{Key: "ZEPHYR_API_URL", Label: "API URL", Placeholder: "https://api.zephyrscale.smartbear.com/v2", InputType: "url", Group: "connection"},
-			{Key: "ZEPHYR_API_TOKEN", Label: "API token", InputType: "password", Group: "connection"},
-			{Key: "ZEPHYR_PROJECT_KEY", Label: "Project key", Group: "delivery", Gateway: true},
-			{Key: "ZEPHYR_TEST_CASE_KEY", Label: "Test case key", Group: "delivery", Gateway: true},
+			urlField("ZEPHYR_API_URL", "API URL", "https://api.zephyrscale.smartbear.com/v2", "connection", false),
+			secretField("ZEPHYR_API_TOKEN", "API token", "connection", false),
+			textField("ZEPHYR_PROJECT_KEY", "Project key", "PAY", "delivery", true),
+			textField("ZEPHYR_TEST_CASE_KEY", "Test case key", "PAY-T1", "delivery", true),
+			textField("ZEPHYR_STATUS", "Status name", "Fail", "delivery", true),
+			textField("ZEPHYR_ENVIRONMENT", "Environment", "CI", "delivery", true),
+			messageField("ZEPHYR_COMMENT", "Comment", "{{name}}\n{{error}}", true),
 		}
 	case "xray":
 		return []PluginField{
-			{Key: "XRAY_CLIENT_ID", Label: "Client ID", Group: "connection"},
-			{Key: "XRAY_CLIENT_SECRET", Label: "Client secret", InputType: "password", Group: "connection"},
-			{Key: "XRAY_PROJECT_KEY", Label: "Project key", Group: "delivery", Gateway: true},
-			{Key: "XRAY_TEST_KEY", Label: "Test key", Group: "delivery", Gateway: true},
+			textField("XRAY_CLIENT_ID", "Client ID", "", "connection", false),
+			secretField("XRAY_CLIENT_SECRET", "Client secret", "connection", false),
+			urlField("XRAY_API_URL", "Cloud API URL", "https://xray.cloud.getxray.app", "connection", false),
+			textField("XRAY_PROJECT_KEY", "Project key", "PAY", "delivery", true),
+			textField("XRAY_TEST_KEY", "Test key", "PAY-1", "delivery", true),
+			textField("XRAY_TEST_EXEC", "Test execution key", "", "delivery", true),
+			textField("XRAY_STATUS", "Status", "FAILED", "delivery", true),
+			messageField("XRAY_SUMMARY", "Execution summary", "[SRE Capsule] {{name}}", false),
+			messageField("XRAY_COMMENT", "Comment", "{{error}}", true),
 		}
 	case "k8s":
 		return []PluginField{
-			{Key: "DEPLOYMENT_NAME", Label: "Deployment name", Placeholder: "my-app", Group: "delivery", Gateway: true},
+			textField("K8S_CONTEXT", "Context", "prod", "connection", false),
+			textField("K8S_NAMESPACE", "Namespace", "default", "delivery", true),
+			textField("DEPLOYMENT_NAME", "Deployment name", "my-app", "delivery", true),
+			textField("K8S_CONTAINER", "Container", "app", "delivery", true),
 		}
 	default:
 		return nil

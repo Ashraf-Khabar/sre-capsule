@@ -19,34 +19,23 @@ const NODE_TEMPLATES = {
         data: { label: 'On CI alert', nodeType: 'trigger' }
     },
     condition: {
-        html: `<div class="wf-node wf-condition"><div class="wf-title">Condition</div>
+        html: `<div class="wf-node wf-condition">
+            <div class="wf-node-bar"><div class="wf-title">Condition</div><button type="button" class="wf-node-edit">Edit</button></div>
             <div class="wf-branch-hint"><span class="true">●</span> top = true · <span class="false">●</span> bottom = false</div>
-            <div class="wf-condition-fields" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
-                <label class="wf-cond-label">Field</label>
-                <select class="wf-cond-field login-input" style="font-size:11px;width:100%;margin:0;">
-                    <option value="name">Incident name</option>
-                    <option value="tag">Tag (FLAKY, PERF)</option>
-                    <option value="status">Status</option>
-                    <option value="error">Error message</option>
-                    <option value="console">Console logs</option>
-                </select>
-                <label class="wf-cond-label">Operator</label>
-                <select class="wf-cond-match login-input" style="font-size:11px;width:100%;margin:0;"></select>
-                <label class="wf-cond-label">Value</label>
-                <input type="text" class="wf-cond-value login-input" style="font-size:11px;width:100%;margin:0;box-sizing:border-box;" placeholder="e.g. [RobotFramework], [FLAKY], Critical">
-                <p class="wf-cond-hint"></p>
-            </div></div>`,
+            <div class="wf-summary"></div>
+        </div>`,
         inputs: 1,
         outputs: 2,
         data: { label: 'Condition', nodeType: 'condition', when: { op: 'text', match: 'prefix', value: '[FLAKY]', field: 'incident.name' } }
     },
     action: {
-        html: `<div class="wf-node wf-action"><div class="wf-title">Action</div>
-            <select class="wf-action-path login-input" style="margin-top:6px;font-size:11px;width:100%;"><option value="">Select integration…</option></select>
-            <div class="wf-desc">Output continues the graph</div></div>`,
+        html: `<div class="wf-node wf-action">
+            <div class="wf-node-bar"><div class="wf-title">Action</div><button type="button" class="wf-node-edit">Edit</button></div>
+            <div class="wf-summary">Choose a plugin</div>
+        </div>`,
         inputs: 1,
         outputs: 1,
-        data: { label: 'Action', nodeType: 'action', file_path: '', integration: '' }
+        data: { label: 'Action', nodeType: 'action', file_path: '', integration: '', config: {} }
     }
 };
 
@@ -259,6 +248,11 @@ function bindWorkflowModalKeys() {
     if (workflowModalKeysBound) return;
     workflowModalKeysBound = true;
     document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isNodeModalOpen()) {
+            e.preventDefault();
+            closeNodeEditor();
+            return;
+        }
         const modal = document.getElementById('workflow-editor-modal');
         if (!modal || modal.style.display === 'none') return;
         if (e.key === 'Escape' && modal.closest('#workflow-page-slot')) return;
@@ -301,7 +295,6 @@ function initDrawflow() {
     if (canvas) {
         canvas.style.width = '100%';
         canvas.style.height = '100%';
-        canvas.style.minHeight = '420px';
     }
     refreshDrawflowViewport();
     return editor;
@@ -315,11 +308,18 @@ function bindDrawflowEvents() {
         bindNodeControls();
         scheduleSyncControlsFromNodeData();
         updateCanvasEmptyState();
-        requestAnimationFrame(() => refreshDrawflowViewport());
+        requestAnimationFrame(() => {
+            refreshDrawflowViewport();
+            syncCanvasExtent();
+        });
     };
     if (typeof editor.on === 'function') {
         editor.on('nodeCreated', refresh);
-        editor.on('nodeRemoved', () => updateCanvasEmptyState());
+        editor.on('nodeRemoved', () => {
+            updateCanvasEmptyState();
+            syncCanvasExtent();
+        });
+        editor.on('nodeMoved', () => syncCanvasExtent());
         editor.on('connectionCreated', () => updateCanvasEmptyState());
         editor.on('connectionRemoved', () => updateCanvasEmptyState());
     }
@@ -348,6 +348,33 @@ function updateCanvasEmptyState() {
     const el = document.getElementById('workflow-canvas-empty');
     if (!el) return;
     el.classList.toggle('visible', drawflowNodeCount() === 0);
+}
+
+/** Grow the canvas only when a node sits outside the visible frame. */
+function syncCanvasExtent() {
+    const host = document.getElementById('drawflow');
+    const canvas = host?.querySelector('.drawflow');
+    if (!host || !canvas) return;
+    const viewW = host.clientWidth || 0;
+    const viewH = host.clientHeight || 0;
+    if (viewW < 80 || viewH < 80) return;
+    if (!host._sreCanvasSize && typeof ResizeObserver !== 'undefined') {
+        host._sreCanvasSize = new ResizeObserver(() => syncCanvasExtent());
+        host._sreCanvasSize.observe(host);
+    }
+    let maxX = 0;
+    let maxY = 0;
+    canvas.querySelectorAll('.drawflow-node').forEach((node) => {
+        maxX = Math.max(maxX, node.offsetLeft + node.offsetWidth + 36);
+        maxY = Math.max(maxY, node.offsetTop + node.offsetHeight + 36);
+    });
+    if (maxX <= viewW + 1 && maxY <= viewH + 1) {
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        return;
+    }
+    canvas.style.width = Math.max(viewW, Math.ceil(maxX)) + 'px';
+    canvas.style.height = Math.max(viewH, Math.ceil(maxY)) + 'px';
 }
 
 function addDrawflowNode(type, posX, posY, data, html) {
@@ -457,30 +484,8 @@ function setSelectValue(sel, value) {
 }
 
 function populateActionSelects() {
-    const options = workflowCatalog.map(p =>
-        `<option value="${escapeAttr(p.file_path)}">${escapeHtml(p.name || p.file_path)}</option>`
-    ).join('');
-    const optionHtml = `<option value="">Select integration…</option>${options}`;
-
-    if (editor?.drawflow?.drawflow?.Home?.data) {
-        Object.values(editor.drawflow.drawflow.Home.data).forEach((node) => {
-            if (node.data?.nodeType !== 'action' && node.name !== 'action') return;
-            const el = getDrawflowNodeEl(node.id);
-            const sel = el?.querySelector('.wf-action-path');
-            if (!sel) return;
-            const path = node.data?.file_path || editor.getNodeFromId(node.id)?.data?.file_path || sel.value;
-            sel.innerHTML = optionHtml;
-            if (path) setSelectValue(sel, path);
-            if (!canEditWorkflow) sel.disabled = true;
-        });
-    } else {
-        document.querySelectorAll('.wf-action-path').forEach(sel => {
-            const cur = sel.value;
-            sel.innerHTML = optionHtml;
-            if (cur) setSelectValue(sel, cur);
-            if (!canEditWorkflow) sel.disabled = true;
-        });
-    }
+    refreshNodeCards();
+    syncCanvasExtent();
 }
 
 function importWorkflowToCanvas(workflow, ui) {
@@ -498,7 +503,8 @@ function importWorkflowToCanvas(workflow, ui) {
     }
 
     if (imported) {
-        refreshConditionNodeHtml();
+        refreshImportedNodeHtml();
+        populateActionSelects();
         bindNodeControls();
         scheduleSyncControlsFromNodeData();
         updateCanvasEmptyState();
@@ -513,10 +519,12 @@ function importWorkflowToCanvas(workflow, ui) {
     addDefaultStarterGraph();
 }
 
-function refreshConditionNodeHtml() {
-    document.querySelectorAll('.drawflow-node.condition').forEach((nodeEl) => {
+function refreshImportedNodeHtml() {
+    document.querySelectorAll('.drawflow-node.condition, .drawflow-node.action').forEach((nodeEl) => {
         const content = nodeEl.querySelector('.drawflow_content_node');
-        if (content) content.innerHTML = NODE_TEMPLATES.condition.html;
+        if (!content) return;
+        if (nodeEl.classList.contains('condition')) content.innerHTML = NODE_TEMPLATES.condition.html;
+        if (nodeEl.classList.contains('action')) content.innerHTML = NODE_TEMPLATES.action.html;
     });
 }
 
@@ -569,6 +577,7 @@ function buildCanvasFromCanonical(workflow) {
         if (node.type === 'action') {
             data.file_path = node.file_path || '';
             data.integration = node.integration || '';
+            data.config = node.config || {};
         }
         const numId = addDrawflowNode(node.type, pos.x, pos.y, data, tpl.html);
         if (numId != null) idMap[cid] = numId;
@@ -674,14 +683,7 @@ function syncOneNodeControls(nodeId, data, attempt) {
         }
         return;
     }
-    if (data.nodeType === 'condition') {
-        applyConditionToControls(el, data.when || NODE_TEMPLATES.condition.data.when);
-    }
-    if (data.nodeType === 'action') {
-        const sel = el.querySelector('.wf-action-path');
-        const path = data.file_path || editor.getNodeFromId(nodeId)?.data?.file_path;
-        if (sel && path) setSelectValue(sel, path);
-    }
+    paintNodeCard(nodeId, data);
 }
 
 function conditionUiField(when) {
@@ -755,49 +757,531 @@ function buildConditionExpr(uiField, match, value) {
     }
 }
 
+let nodeEditBound = false;
+let editingNodeId = null;
+
 function bindNodeControls() {
-    document.querySelectorAll('.wf-cond-field').forEach(fieldSel => {
-        fieldSel.onchange = () => {
-            const nodeEl = fieldSel.closest('.drawflow-node');
-            if (!nodeEl) return;
-            const matchSel = nodeEl.querySelector('.wf-cond-match');
-            populateMatchOptions(matchSel, fieldSel.value, null);
-            setConditionHint(nodeEl, fieldSel.value);
-            syncConditionDataFromNodeEl(nodeEl);
-        };
-        if (!canEditWorkflow) fieldSel.disabled = true;
+    const container = document.getElementById('drawflow');
+    if (!container || nodeEditBound) return;
+    nodeEditBound = true;
+    container.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.wf-node-edit')) e.stopPropagation();
+    }, true);
+    container.addEventListener('click', (e) => {
+        const btn = e.target.closest('.wf-node-edit');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openNodeEditor(btn.closest('.drawflow-node'));
     });
-    document.querySelectorAll('.wf-cond-match').forEach(matchSel => {
-        matchSel.onchange = () => {
-            const nodeEl = matchSel.closest('.drawflow-node');
-            if (nodeEl) syncConditionDataFromNodeEl(nodeEl);
-        };
-        if (!canEditWorkflow) matchSel.disabled = true;
+    const modal = document.getElementById('wf-node-modal');
+    modal?.querySelectorAll('[data-wf-node-close]').forEach((btn) => {
+        btn.addEventListener('click', closeNodeEditor);
     });
-    document.querySelectorAll('.wf-cond-value').forEach(inp => {
-        inp.oninput = () => {
-            const nodeEl = inp.closest('.drawflow-node');
-            if (nodeEl) syncConditionDataFromNodeEl(nodeEl);
-        };
-        if (!canEditWorkflow) inp.disabled = true;
-    });
-    document.querySelectorAll('.wf-action-path').forEach(sel => {
-        sel.onchange = () => syncActionData(sel);
-        if (!canEditWorkflow) sel.disabled = true;
+    modal?.querySelector('[data-wf-node-apply]')?.addEventListener('click', applyNodeEditor);
+    document.getElementById('wf-node-modal-backdrop')?.addEventListener('click', closeNodeEditor);
+}
+
+function displayPluginName(name) {
+    return String(name || '').replace(/\u2014/g, '-');
+}
+
+function matchLabel(uiField, match) {
+    const opts = CONDITION_MATCH_OPTIONS[uiField] || [];
+    return opts.find(o => o.value === match)?.label || match || '';
+}
+
+function conditionSummary(when) {
+    const uiField = conditionUiField(when);
+    const names = {
+        name: 'Incident name',
+        tag: 'Tag',
+        status: 'Status',
+        error: 'Error message',
+        console: 'Console logs'
+    };
+    const value = String(when?.value || '').trim();
+    const parts = [names[uiField] || 'Condition', matchLabel(uiField, when?.match)];
+    if (value) parts.push(value);
+    return parts.filter(Boolean).join(' · ');
+}
+
+function actionSummary(data) {
+    const plugin = workflowCatalog.find(p => p.file_path === data?.file_path);
+    const name = displayPluginName(plugin?.name || data?.label || 'Choose a plugin');
+    const cfg = data?.config || {};
+    const subject = cfg.SMTP_SUBJECT || cfg.SENDGRID_SUBJECT || cfg.SLACK_TITLE || cfg.JIRA_SUMMARY || cfg.TEAMS_TITLE || '';
+    const line = String(subject).trim();
+    return line ? `${name} - ${line}` : name;
+}
+
+function paintNodeCard(nodeId, data) {
+    const el = getDrawflowNodeEl(nodeId);
+    if (!el) return;
+    const summary = el.querySelector('.wf-summary');
+    const edit = el.querySelector('.wf-node-edit');
+    if (edit) edit.textContent = canEditWorkflow ? 'Edit' : 'View';
+    if (!summary) return;
+    if (data?.nodeType === 'condition' || el.classList.contains('condition')) {
+        summary.textContent = conditionSummary(data?.when || NODE_TEMPLATES.condition.data.when);
+    }
+    if (data?.nodeType === 'action' || el.classList.contains('action')) {
+        summary.textContent = actionSummary(data || {});
+    }
+}
+
+function refreshNodeCards() {
+    if (!editor?.drawflow?.drawflow?.Home?.data) return;
+    Object.values(editor.drawflow.drawflow.Home.data).forEach((node) => {
+        paintNodeCard(node.id, node.data || {});
     });
 }
 
-function syncConditionDataFromNodeEl(nodeEl) {
+function isNodeModalOpen() {
+    const modal = document.getElementById('wf-node-modal');
+    return !!modal && !modal.hidden;
+}
+
+function closeNodeEditor() {
+    const modal = document.getElementById('wf-node-modal');
+    if (modal) modal.hidden = true;
+    editingNodeId = null;
+}
+
+function isMailPlugin(plugin) {
+    const id = String(plugin?.integration || '').toLowerCase();
+    return id === 'smtp' || id === 'sendgrid';
+}
+
+function mailKeys(plugin) {
+    if (String(plugin?.integration || '').toLowerCase() === 'sendgrid') {
+        return { subject: 'SENDGRID_SUBJECT', body: 'SENDGRID_BODY' };
+    }
+    return { subject: 'SMTP_SUBJECT', body: 'SMTP_BODY' };
+}
+
+const MAIL_TAGS = new Set(['P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI', 'DIV', 'SPAN', 'FONT', 'CODE', 'PRE']);
+const MAIL_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#e7eef6'];
+const MAIL_EMOJIS = ['😀', '😁', '😂', '🙂', '😉', '😊', '😍', '🤔', '👍', '👎', '👏', '🙏', '👀', '💡', '🔥', '✨', '✅', '❌', '⚠️', '🐛', '🚀', '📌', '⏳', '🎉'];
+const MAIL_SYMBOLS = ['•', '●', '○', '■', '✓', '✗', '★', '☆', '⚠', '➜', '→', '#', '@', '[ ]', '{ }', '</>'];
+const MAIL_SIZES = ['12', '14', '16', '18', '20', '24', '28'];
+
+function mailColor(node) {
+    const attr = node.getAttribute?.('color') || '';
+    if (/^#[0-9a-fA-F]{6}$/.test(attr)) return attr.toLowerCase();
+    const style = node.getAttribute?.('style') || '';
+    const hex = style.match(/color\s*:\s*(#[0-9a-fA-F]{6})/i);
+    if (hex) return hex[1].toLowerCase();
+    const rgb = style.match(/color\s*:\s*rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i);
+    if (!rgb) return '';
+    const parts = [rgb[1], rgb[2], rgb[3]].map((n) => {
+        const v = Math.max(0, Math.min(255, Number(n)));
+        return v.toString(16).padStart(2, '0');
+    });
+    return `#${parts.join('')}`;
+}
+
+function mailSize(node) {
+    const style = node.getAttribute?.('style') || '';
+    const match = style.match(/font-size\s*:\s*(12|14|16|18|20|24|28)px/i);
+    return match ? `${match[1]}px` : '';
+}
+
+function sanitizeMailHtml(html) {
+    const doc = new DOMParser().parseFromString(`<div>${html || ''}</div>`, 'text/html');
+    const root = doc.body.firstElementChild;
+    if (!root) return '';
+    const clean = (node) => {
+        const out = [];
+        node.childNodes.forEach((child) => {
+            if (child.nodeType === Node.TEXT_NODE) {
+                out.push(document.createTextNode(child.textContent));
+                return;
+            }
+            if (child.nodeType !== Node.ELEMENT_NODE) return;
+            if (!MAIL_TAGS.has(child.tagName)) {
+                out.push(...clean(child));
+                return;
+            }
+            const el = document.createElement(child.tagName.toLowerCase());
+            if (child.tagName === 'FONT' || child.tagName === 'SPAN') {
+                const bits = [];
+                const color = mailColor(child);
+                const size = mailSize(child);
+                if (color) {
+                    bits.push(`color:${color}`);
+                    el.setAttribute('color', color);
+                }
+                if (size) bits.push(`font-size:${size}`);
+                if (bits.length) el.setAttribute('style', bits.join(';'));
+            }
+            clean(child).forEach((part) => el.appendChild(part));
+            out.push(el);
+        });
+        return out;
+    };
+    const holder = document.createElement('div');
+    clean(root).forEach((part) => holder.appendChild(part));
+    return holder.innerHTML;
+}
+
+function fillMailBody(el, value) {
+    const raw = String(value || '');
+    if (raw.includes('<')) el.innerHTML = sanitizeMailHtml(raw);
+    else el.textContent = raw;
+}
+
+let mailPopBound = false;
+
+function closeMailPops(root) {
+    (root || document).querySelectorAll('.wf-mail-pop').forEach((pop) => {
+        pop.hidden = true;
+    });
+    (root || document).querySelectorAll('.wf-mail-toolbar [data-pop]').forEach((btn) => {
+        btn.setAttribute('aria-expanded', 'false');
+    });
+}
+
+function toggleMailPop(root, btn) {
+    const pop = btn.parentElement?.querySelector('.wf-mail-pop');
+    const opening = !!pop?.hidden;
+    closeMailPops(root);
+    if (!opening || !pop) return;
+    pop.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+}
+
+function focusMailBody(body) {
+    body?.focus();
+}
+
+function insertMailText(body, text) {
+    if (!text) return;
+    focusMailBody(body);
+    document.execCommand('insertText', false, text);
+}
+
+function applyMailCommand(body, cmd) {
+    focusMailBody(body);
+    if (cmd === 'bold') document.execCommand('bold');
+    if (cmd === 'italic') document.execCommand('italic');
+    if (cmd === 'underline') document.execCommand('underline');
+    if (cmd === 'ul') document.execCommand('insertUnorderedList');
+    if (cmd === 'ol') document.execCommand('insertOrderedList');
+    if (cmd === 'code') {
+        const text = window.getSelection()?.toString() || 'code';
+        document.execCommand('insertHTML', false, `<code>${escapeHtml(text)}</code>`);
+    }
+    if (cmd === 'pre') {
+        const text = window.getSelection()?.toString() || 'code';
+        document.execCommand('insertHTML', false, `<pre><code>${escapeHtml(text)}</code></pre>`);
+    }
+}
+
+function applyMailColor(body, color) {
+    focusMailBody(body);
+    document.execCommand('styleWithCSS', false, false);
+    if (color === 'default') {
+        document.execCommand('foreColor', false, '#e7eef6');
+        body?.querySelectorAll('font, span').forEach((node) => {
+            if (mailColor(node) === '#e7eef6') {
+                const parent = node.parentNode;
+                if (!parent) return;
+                while (node.firstChild) parent.insertBefore(node.firstChild, node);
+                parent.removeChild(node);
+            }
+        });
+        return;
+    }
+    if (/^#[0-9a-fA-F]{6}$/.test(color || '')) document.execCommand('foreColor', false, color);
+}
+
+function unwrapMailNode(node) {
+    const parent = node.parentNode;
+    if (!parent) return;
+    while (node.firstChild) parent.insertBefore(node.firstChild, node);
+    parent.removeChild(node);
+}
+
+function applyMailSize(body, size) {
+    focusMailBody(body);
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !body) return;
+    const range = sel.getRangeAt(0);
+    if (size === 'default') {
+        body.querySelectorAll('span, font').forEach((node) => {
+            let hit = false;
+            try { hit = range.intersectsNode(node); } catch (_) { hit = false; }
+            if (!hit) return;
+            node.style.fontSize = '';
+            if (!node.getAttribute('style')?.trim() && !node.getAttribute('color')) unwrapMailNode(node);
+        });
+        return;
+    }
+    if (!MAIL_SIZES.includes(String(size))) return;
+    const text = range.toString();
+    if (!text) {
+        document.execCommand('insertHTML', false, `<span style="font-size:${size}px">&#8203;</span>`);
+        return;
+    }
+    document.execCommand('insertHTML', false, `<span style="font-size:${size}px">${escapeHtml(text)}</span>`);
+}
+
+function bindMailToolbar(root) {
+    const body = root.querySelector('.wf-mail-body');
+    const toolbar = root.querySelector('.wf-mail-toolbar');
+    if (!mailPopBound) {
+        mailPopBound = true;
+        document.addEventListener('click', (event) => {
+            if (event.target.closest('.wf-mail-toolbar')) return;
+            closeMailPops(document);
+        });
+    }
+    toolbar?.addEventListener('mousedown', (event) => {
+        if (event.target.closest('button')) event.preventDefault();
+    });
+    toolbar?.addEventListener('click', (event) => {
+        const swatch = event.target.closest('[data-color]');
+        if (swatch) {
+            applyMailColor(body, swatch.dataset.color);
+            closeMailPops(root);
+            return;
+        }
+        const sizeBtn = event.target.closest('[data-size]');
+        if (sizeBtn) {
+            applyMailSize(body, sizeBtn.dataset.size);
+            closeMailPops(root);
+            return;
+        }
+        const emoji = event.target.closest('[data-emoji]');
+        if (emoji) {
+            insertMailText(body, emoji.dataset.emoji);
+            closeMailPops(root);
+            return;
+        }
+        const symbol = event.target.closest('[data-symbol]');
+        if (symbol) {
+            insertMailText(body, symbol.dataset.symbol);
+            closeMailPops(root);
+            return;
+        }
+        const popBtn = event.target.closest('[data-pop]');
+        if (popBtn) {
+            event.stopPropagation();
+            toggleMailPop(root, popBtn);
+            return;
+        }
+        const token = event.target.closest('[data-token]');
+        if (token) {
+            closeMailPops(root);
+            insertMailText(body, token.dataset.token);
+            return;
+        }
+        const btn = event.target.closest('[data-cmd]');
+        if (!btn) return;
+        closeMailPops(root);
+        applyMailCommand(body, btn.dataset.cmd);
+    });
+    if (!canEditWorkflow && body) body.setAttribute('contenteditable', 'false');
+}
+
+function mailPopButtons(items, attr) {
+    return items.map((item) => {
+        const value = Array.isArray(item) ? item[0] : item;
+        const label = Array.isArray(item) ? item[1] : item;
+        return `<button type="button" ${attr}="${escapeAttr(value)}" title="${escapeAttr(label)}">${escapeHtml(label)}</button>`;
+    }).join('');
+}
+
+function mailToolbarHTML() {
+    const colors = ['<button type="button" class="wf-mail-swatch wf-mail-swatch--default" data-color="default" title="Default">A</button>']
+        .concat(MAIL_COLORS.filter((c) => c !== '#e7eef6').map((c) =>
+            `<button type="button" class="wf-mail-swatch" data-color="${c}" style="background:${c}" title="${c}"></button>`
+        )).join('');
+    return '<div class="wf-mail-toolbar" role="toolbar" aria-label="Message formatting">'
+        + '<button type="button" data-cmd="bold" title="Bold"><b>B</b></button>'
+        + '<button type="button" data-cmd="italic" title="Italic"><i>I</i></button>'
+        + '<button type="button" data-cmd="underline" title="Underline"><u>U</u></button>'
+        + '<span class="wf-mail-popwrap"><button type="button" data-pop="color" title="Text color" aria-expanded="false"><span class="wf-mail-ink">A</span></button>'
+        + `<span class="wf-mail-pop wf-mail-colors" hidden>${colors}</span></span>`
+        + '<span class="wf-mail-popwrap"><button type="button" data-pop="size" title="Font size" aria-expanded="false">Aa</button>'
+        + `<span class="wf-mail-pop wf-mail-sizes" hidden><button type="button" data-size="default" title="Default size">Aa</button>${MAIL_SIZES.map((size) => `<button type="button" data-size="${size}" title="${size} px">${size}</button>`).join('')}</span></span>`
+        + '<button type="button" data-cmd="ul" title="Bullet list">•</button>'
+        + '<button type="button" data-cmd="ol" title="Numbered list">1.</button>'
+        + '<span class="wf-mail-popwrap"><button type="button" data-pop="symbol" title="Symbols" aria-expanded="false">Ω</button>'
+        + `<span class="wf-mail-pop wf-mail-symbols" hidden>${mailPopButtons(MAIL_SYMBOLS, 'data-symbol')}</span></span>`
+        + '<span class="wf-mail-popwrap"><button type="button" data-pop="emoji" title="Emoji" aria-expanded="false">😀</button>'
+        + `<span class="wf-mail-pop wf-mail-emojis" hidden>${mailPopButtons(MAIL_EMOJIS, 'data-emoji')}</span></span>`
+        + '<button type="button" data-cmd="code" title="Inline code">&lt;/&gt;</button>'
+        + '<button type="button" data-cmd="pre" title="Code block">{ }</button>'
+        + '<button type="button" data-token="{{name}}">Name</button>'
+        + '<button type="button" data-token="{{status}}">Status</button>'
+        + '<button type="button" data-token="{{error}}">Error</button>'
+        + '<button type="button" data-token="{{console}}">Console</button>'
+        + '</div>';
+}
+
+function messageControl(field, values) {
+    const val = values?.[field.key] || '';
+    const label = escapeHtml(field.label || field.key);
+    const name = escapeAttr(field.key);
+    const placeholder = escapeAttr(field.placeholder || '');
+    const hint = field.hint ? `<p class="wf-cond-hint">${escapeHtml(field.hint)}</p>` : '';
+    const disabled = canEditWorkflow ? '' : 'disabled';
+    if (field.input_type === 'textarea') {
+        return `<label class="wf-cond-label">${label}</label>
+            <textarea class="login-input wf-action-field" data-key="${name}" placeholder="${placeholder}" ${disabled}>${escapeHtml(val)}</textarea>${hint}`;
+    }
+    return `<label class="wf-cond-label">${label}</label>
+        <input type="text" class="login-input wf-action-field" data-key="${name}" placeholder="${placeholder}" value="${escapeAttr(val)}" ${disabled}>${hint}`;
+}
+
+function renderMailComposer(host, plugin, values) {
+    const keys = mailKeys(plugin);
+    const subject = escapeAttr(values?.[keys.subject] || '');
+    const disabled = canEditWorkflow ? '' : 'disabled';
+    const toolbar = canEditWorkflow ? mailToolbarHTML() : '';
+    host.innerHTML = `
+        <p class="wf-cond-hint">The logo and the frame are fixed. Write the subject and the message only.</p>
+        <label class="wf-cond-label" for="wf-mail-subject">Subject</label>
+        <input id="wf-mail-subject" class="login-input" data-key="${escapeAttr(keys.subject)}" value="${subject}" placeholder="[SRE Capsule] {{name}}" ${disabled}>
+        <div class="wf-mail-frame">
+            <div class="wf-mail-brand">
+                <img src="assets/logo.png" alt="SRE Capsule">
+            </div>
+            ${toolbar}
+            <div class="wf-mail-body" contenteditable="true" data-key="${escapeAttr(keys.body)}" role="textbox" aria-multiline="true"></div>
+            <div class="wf-mail-foot">SRE Capsule</div>
+        </div>`;
+    const body = host.querySelector('.wf-mail-body');
+    if (body) fillMailBody(body, values?.[keys.body] || '');
+    bindMailToolbar(host);
+}
+
+function renderActionMessage(path, values) {
+    const host = document.getElementById('wf-modal-message');
+    if (!host) return;
+    const plugin = workflowCatalog.find(p => p.file_path === path);
+    if (!path) {
+        host.innerHTML = '<p class="wf-cond-hint">Choose a plugin to write its message.</p>';
+        return;
+    }
+    if (isMailPlugin(plugin)) {
+        renderMailComposer(host, plugin, values || {});
+        return;
+    }
+    const fields = (plugin?.config_fields || []).filter(f => f.group === 'message');
+    if (!fields.length) {
+        host.innerHTML = '<p class="wf-cond-hint">This plugin has no message. Connection settings stay in Plugin Engine.</p>';
+        return;
+    }
+    host.innerHTML = `<p class="wf-cond-hint">Message for this gateway. Leave empty to keep the plugin default.</p>${fields.map(f => messageControl(f, values)).join('')}`;
+}
+
+function renderConditionForm(when) {
+    const body = document.getElementById('wf-node-modal-body');
+    body.innerHTML = `
+        <label class="wf-cond-label">Field</label>
+        <select class="wf-cond-field login-input">
+            <option value="name">Incident name</option>
+            <option value="tag">Tag (FLAKY, PERF)</option>
+            <option value="status">Status</option>
+            <option value="error">Error message</option>
+            <option value="console">Console logs</option>
+        </select>
+        <label class="wf-cond-label">Operator</label>
+        <select class="wf-cond-match login-input"></select>
+        <label class="wf-cond-label">Value</label>
+        <input type="text" class="wf-cond-value login-input" placeholder="e.g. [RobotFramework], [FLAKY], Critical">
+        <p class="wf-cond-hint"></p>`;
+    applyConditionToControls(body, when || NODE_TEMPLATES.condition.data.when);
+    const fieldSel = body.querySelector('.wf-cond-field');
+    fieldSel.onchange = () => {
+        populateMatchOptions(body.querySelector('.wf-cond-match'), fieldSel.value, null);
+        setConditionHint(body, fieldSel.value);
+    };
+    if (!canEditWorkflow) {
+        body.querySelectorAll('input, select, textarea').forEach((el) => { el.disabled = true; });
+    }
+}
+
+function renderActionForm(data) {
+    const body = document.getElementById('wf-node-modal-body');
+    const options = workflowCatalog.map(p =>
+        `<option value="${escapeAttr(p.file_path)}">${escapeHtml(displayPluginName(p.name || p.file_path))}</option>`
+    ).join('');
+    body.innerHTML = `
+        <label class="wf-cond-label" for="wf-modal-plugin">Plugin</label>
+        <select id="wf-modal-plugin" class="login-input">
+            <option value="">Select integration…</option>${options}
+        </select>
+        <div id="wf-modal-message"></div>`;
+    const sel = document.getElementById('wf-modal-plugin');
+    if (data?.file_path) setSelectValue(sel, data.file_path);
+    sel.onchange = () => renderActionMessage(sel.value, {});
+    if (!canEditWorkflow) sel.disabled = true;
+    renderActionMessage(sel.value, data?.config || {});
+}
+
+function openNodeEditor(nodeEl) {
     if (!nodeEl || !editor) return;
     const id = nodeEl.id.replace('node-', '');
-    const uiField = nodeEl.querySelector('.wf-cond-field')?.value || 'tag';
-    const match = nodeEl.querySelector('.wf-cond-match')?.value || 'prefix';
-    const value = nodeEl.querySelector('.wf-cond-value')?.value ?? '';
-    const when = buildConditionExpr(uiField, match, value);
     const data = editor.getNodeFromId(id)?.data || {};
-    data.when = when;
-    data.nodeType = 'condition';
+    const type = data.nodeType || (nodeEl.classList.contains('condition') ? 'condition' : 'action');
+    editingNodeId = id;
+    const title = document.getElementById('wf-node-modal-title');
+    const apply = document.querySelector('[data-wf-node-apply]');
+    if (title) title.textContent = type === 'condition' ? 'Condition' : 'Action';
+    if (apply) apply.hidden = !canEditWorkflow;
+    if (type === 'condition') renderConditionForm(data.when);
+    else renderActionForm(data);
+    const modal = document.getElementById('wf-node-modal');
+    if (modal) modal.hidden = false;
+}
+
+function readModalConfig() {
+    const config = {};
+    const root = document.getElementById('wf-node-modal-body');
+    root?.querySelectorAll('.wf-action-field, #wf-mail-subject').forEach((inp) => {
+        if (inp.dataset.key) config[inp.dataset.key] = inp.value;
+    });
+    const body = root?.querySelector('.wf-mail-body');
+    if (body?.dataset.key) {
+        const html = sanitizeMailHtml(body.innerHTML);
+        const text = body.textContent.replace(/\u00a0/g, ' ').trim();
+        if (text) config[body.dataset.key] = html;
+    }
+    return config;
+}
+
+function applyNodeEditor() {
+    if (!editingNodeId || !editor || !canEditWorkflow) {
+        closeNodeEditor();
+        return;
+    }
+    const id = editingNodeId;
+    const data = { ...(editor.getNodeFromId(id)?.data || {}) };
+    const root = document.getElementById('wf-node-modal-body');
+    if (root?.querySelector('.wf-cond-field')) {
+        data.when = buildConditionExpr(
+            root.querySelector('.wf-cond-field')?.value || 'name',
+            root.querySelector('.wf-cond-match')?.value || 'prefix',
+            root.querySelector('.wf-cond-value')?.value ?? ''
+        );
+        data.nodeType = 'condition';
+        data.label = 'Condition';
+    } else {
+        const path = document.getElementById('wf-modal-plugin')?.value || '';
+        const plugin = workflowCatalog.find(p => p.file_path === path);
+        data.file_path = path;
+        data.integration = plugin?.integration || '';
+        data.label = plugin?.name || 'Action';
+        data.config = readModalConfig();
+        data.nodeType = 'action';
+    }
     editor.updateNodeDataFromId(id, data);
+    paintNodeCard(id, data);
+    closeNodeEditor();
 }
 
 /** Legacy preset strings (imported workflows) → structured when. */
@@ -808,19 +1292,6 @@ function whenFromLegacyPreset(val) {
     if (op === 'status') return { op: 'status', match: match || 'equals', value };
     if (op === 'text') return { op: 'text', match: match || 'contains', field: 'incident.error', value };
     return null;
-}
-
-function syncActionData(sel) {
-    const nodeEl = sel.closest('.drawflow-node');
-    if (!nodeEl || !editor) return;
-    const id = nodeEl.id.replace('node-', '');
-    const path = sel.value;
-    const plugin = workflowCatalog.find(p => p.file_path === path);
-    const data = editor.getNodeFromId(id)?.data || {};
-    data.file_path = path;
-    data.integration = plugin?.integration || '';
-    data.label = plugin?.name || 'Action';
-    editor.updateNodeDataFromId(id, data);
 }
 
 function parseConditionPreset(val) {
@@ -839,10 +1310,7 @@ export function addWorkflowNode(type) {
 }
 
 function flushAllNodeDataBeforeExport() {
-    document.querySelectorAll('.drawflow-node').forEach(nodeEl => {
-        if (nodeEl.querySelector('.wf-cond-field')) syncConditionDataFromNodeEl(nodeEl);
-    });
-    document.querySelectorAll('.wf-action-path').forEach(sel => syncActionData(sel));
+    if (isNodeModalOpen() && canEditWorkflow) applyNodeEditor();
 }
 
 function validateWorkflowDoc(doc, enabled) {
@@ -966,6 +1434,7 @@ function canonicalFromDrawflow(exported) {
         if (type === 'action') {
             out.file_path = d.file_path || '';
             out.integration = d.integration || '';
+            if (d.config && Object.keys(d.config).length) out.config = d.config;
         }
         nodes[cid] = out;
         if (type === 'trigger' && !entry) entry = cid;
@@ -1010,6 +1479,7 @@ export function toggleWorkflowHelp() {
 
 export function fitWorkflowCanvas() {
     refreshDrawflowViewport();
+    syncCanvasExtent();
 }
 
 export async function simulateWorkflow() {

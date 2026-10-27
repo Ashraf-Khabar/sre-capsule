@@ -2,7 +2,7 @@
  * Documentation - available to all roles
  */
 import { FINOPS_METRICS_DOC_HTML } from './finops-metrics-doc.js?v=1.0.99-maint';
-import { EXTENDED_HELP_TOPICS } from './help-center-topics.js?v=1.0.104-plugin-forms';
+import { EXTENDED_HELP_TOPICS } from './help-center-topics.js?v=1.0.112-mail-size';
 import { SRE_THEORY_DOC_HTML } from './sre-theory-doc.js?v=1.0.101-workflow-page';
 import { ROLE_LABELS, ROLE_DESCRIPTIONS } from './roles.js?v=1.0.101-workflow-page';
 

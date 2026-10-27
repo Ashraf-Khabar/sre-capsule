@@ -908,13 +908,13 @@ function routingFieldsForIntegrationClient(integration) {
 function fieldsForPluginConfig(plugin) {
     const schema = Array.isArray(plugin?.config_fields) ? plugin.config_fields : [];
     const known = new Set(schema.map(f => f.key));
-    const extra = Object.keys(plugin?.env || {}).filter(k => !known.has(k)).map(k => ({
+    const extra = Object.keys(plugin?.env || {}).filter(k => !known.has(k) && !k.endsWith('_SUBJECT') && !k.endsWith('_BODY') && !k.endsWith('_TITLE') && !k.endsWith('_TEXT') && !k.endsWith('_MESSAGE') && !k.endsWith('_DESCRIPTION') && k !== 'WEBHOOK_MESSAGE').map(k => ({
         key: k,
         label: k,
         input_type: 'text',
         group: 'connection'
     }));
-    return schema.concat(extra);
+    return schema.concat(extra).filter(f => f.group !== 'message');
 }
 
 function pluginConfigControl(field, idx, value) {
@@ -1299,6 +1299,7 @@ function renderPluginList(plugins, query = '', category = 'all') {
                     </div>
                     <div id="config-${globalIdx}" class="plugin-config-panel">
                         ${envs}
+                        <p class="plugin-config-hint">The message is set on the action in <strong>Workflow</strong>, separately for each gateway.</p>
                         ${envKeys.length ? `<button type="button" class="btn-primary plugin-save-fullwidth" onclick="window.savePluginConfig('${safePath}', ${globalIdx}, '${envKeysAttr}')">${saveIcon} Save</button>` : ''}
                     </div>
                     <div id="logs-container-${globalIdx}" class="plugin-logs">

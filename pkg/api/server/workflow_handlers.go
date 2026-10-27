@@ -246,6 +246,7 @@ func workflowCatalog() []map[string]interface{} {
 			"integration":    m.Integration,
 			"name":           m.Name,
 			"routing_fields": integrations.RoutingFieldsForIntegration(m.Integration),
+			"config_fields":  integrations.ConfigFieldsForIntegration(m.Integration),
 		})
 	}
 	return out

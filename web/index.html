@@ -8,7 +8,7 @@
     <link rel="icon" href="/assets/logo.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap">
-    <link rel="stylesheet" href="/style.css?v=1.0.104-plugin-forms">
+    <link rel="stylesheet" href="/style.css?v=1.0.112-mail-size">
     <script>
         try {
             if (localStorage.getItem('sre-sidebar-collapsed') === '1') {
@@ -1940,7 +1940,6 @@
                 <div id="workflow-editor-host" hidden>
                     <div class="executive-toolbar">
                         <button type="button" class="btn-secondary btn-sm" onclick="loadWorkflowPage()">Back to gateways</button>
-                        <button type="button" class="btn-secondary btn-sm" id="workflow-tester-toggle" onclick="toggleWorkflowTester()">Show tester</button>
                     </div>
                     <div id="workflow-page-slot"></div>
                 </div>
@@ -1959,7 +1958,7 @@
                     <span>Enable workflow</span>
                 </label>
                 <span id="workflow-readonly-badge">Read-only</span>
-                <button type="button" class="btn-secondary" onclick="openWorkflowHelpTopic()" title="Open Documentation - Visual Workflows">?</button>
+                <button type="button" class="btn-secondary" onclick="openWorkflowHelpTopic()" title="Open the workflow guide">?</button>
                 <button type="button" class="btn-secondary wf-edit-only" onclick="loadFlakyExampleWorkflow()">Example</button>
                 <button type="button" class="btn-secondary wf-edit-only" onclick="addWorkflowNode('trigger')">+ Trigger</button>
                 <button type="button" class="btn-secondary wf-edit-only" onclick="addWorkflowNode('condition')">+ Condition</button>
@@ -1977,25 +1976,21 @@
                             <p style="margin:0;">Click <strong>+ Trigger</strong> to start, or load a saved workflow.</p>                        </div>
                     </div>
                 </div>
-                <aside id="workflow-help-panel">
-                    <h3 class="plugin-config-panel__title" style="margin:0 0 10px;">Simulate incident</h3>
-                    <label style="font-size:11px;display:block;margin-bottom:4px;">Test name</label>
-                    <input type="text" id="wf-sim-name" class="login-input" value="[FLAKY] checkout payment" style="margin-bottom:8px;font-size:11px;">
-                    <label style="font-size:11px;display:block;margin-bottom:4px;">Status</label>
-                    <input type="text" id="wf-sim-status" class="login-input" value="Critical" style="margin-bottom:8px;font-size:11px;">
-                    <label style="font-size:11px;display:block;margin-bottom:4px;">Error</label>
-                    <input type="text" id="wf-sim-error" class="login-input" value="timeout waiting for upstream" style="margin-bottom:8px;font-size:11px;">
-                    <button type="button" class="btn-secondary" style="width:100%;margin-bottom:10px;" onclick="simulateWorkflow()">Run simulation</button>
-                    <pre id="workflow-simulate-result" class="workflow-simulate-result"></pre>
-                    <h3 style="margin:16px 0 10px;color:#58a6ff;font-size:13px;">Workflow quick guide</h3>
-                    <p><strong>Trigger</strong> - One entry node per graph when a CI alert is ingested.</p>
-                    <p><strong>Condition</strong> - Branch on <code>[FLAKY]</code>, <code>[PERF]</code>, status, or error text. <span style="color:#3fb950">Top</span> output = true, <span style="color:#f85149">bottom</span> = false.</p>
-                    <p><strong>Action</strong> - Native plugin (Slack, Jira, webhook…). Its output continues the graph, so actions and conditions can be chained. The plugin must be in the gateway routing list. Kubernetes restart is not available.</p>
-                    <p style="margin-top:10px;"><strong>Example</strong> - Trigger → [FLAKY]? → Slack (yes) / Jira (no).</p>
-                    <p><strong>Enable workflow</strong> + Save = DAG live. Unchecked = draft (legacy AUTO-RUN still runs).</p>
-                    <p><strong>Simulate</strong> - Dry-run without calling vendors. <strong>Reset</strong> - delete DAG.</p>
-                    <p class="form-hint" style="margin-top:12px;"><a href="#" class="text-link" onclick="openWorkflowHelpTopic();return false;">Full guide in Documentation →</a></p>
-                </aside>
+            </div>
+        </div>
+    </div>
+
+    <div id="wf-node-modal" class="wf-node-modal" hidden>
+        <div id="wf-node-modal-backdrop" class="wf-node-modal__backdrop"></div>
+        <div class="wf-node-modal__card" role="dialog" aria-modal="true" aria-labelledby="wf-node-modal-title">
+            <div class="wf-node-modal__head">
+                <h3 id="wf-node-modal-title">Edit</h3>
+                <button type="button" class="wf-node-modal__close" data-wf-node-close aria-label="Close">×</button>
+            </div>
+            <div id="wf-node-modal-body" class="wf-node-modal__body"></div>
+            <div class="wf-node-modal__actions">
+                <button type="button" class="btn-secondary" data-wf-node-close>Cancel</button>
+                <button type="button" class="btn-primary" data-wf-node-apply>Apply</button>
             </div>
         </div>
     </div>
@@ -2068,6 +2063,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
-    <script type="module" src="app.js?v=1.0.105-name-match"></script>
+    <script type="module" src="app.js?v=1.0.112-mail-size"></script>
 </body>
 </html>

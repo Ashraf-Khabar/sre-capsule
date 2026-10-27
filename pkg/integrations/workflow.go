@@ -28,8 +28,9 @@ type WorkflowNode struct {
 	Type        string         `json:"type"` // trigger | condition | action
 	Label       string         `json:"label,omitempty"`
 	When        *ConditionExpr `json:"when,omitempty"`
-	FilePath    string         `json:"file_path,omitempty"`
-	Integration string         `json:"integration,omitempty"`
+	FilePath    string            `json:"file_path,omitempty"`
+	Integration string            `json:"integration,omitempty"`
+	Config      map[string]string `json:"config,omitempty"`
 }
 
 type WorkflowEdge struct {

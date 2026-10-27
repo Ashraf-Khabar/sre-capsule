@@ -3,6 +3,7 @@ package integrations
 import (
 	"context"
 	"log/slog"
+	"strings"
 )
 
 // WorkflowEngine walks a DAG and runs native integration actions.
@@ -85,7 +86,7 @@ func (we *WorkflowEngine) walk(ctx context.Context, doc *WorkflowDocument, nodeI
 					inc.Action = "AUTO_EVENT:" + inc.Name
 				}
 				slog.Info("workflow action", "path", node.FilePath, "label", node.Label)
-				res := we.engine.runManifest(ctx, m, inc, routing)
+				res := we.engine.runManifest(ctx, m, inc, routingForAction(routing, node))
 				if !res.Success {
 					slog.Warn("workflow action failed", "path", node.FilePath, "logs", res.Logs)
 				}
@@ -135,6 +136,35 @@ func (we *WorkflowEngine) walkPlan(doc *WorkflowDocument, nodeID string, wctx Wo
 			we.walkPlan(doc, next, wctx, plan, visited)
 		}
 	}
+}
+
+// routingForAction overlays the action node's own fields on the gateway routing.
+// Empty node values keep the gateway or plugin default.
+func routingForAction(base ProjectRouting, node WorkflowNode) ProjectRouting {
+	if len(node.Config) == 0 {
+		return base
+	}
+	values := make(map[string]string, len(base.Values)+len(node.Config))
+	for k, v := range base.Values {
+		values[k] = v
+	}
+	for k, v := range node.Config {
+		if strings.TrimSpace(v) != "" {
+			values[k] = strings.TrimSpace(v)
+		}
+	}
+	out := base
+	out.Values = values
+	if v := values["SLACK_CHANNEL"]; v != "" {
+		out.SlackChannel = v
+	}
+	if v := values["JIRA_PROJECT_KEY"]; v != "" {
+		out.JiraProjectKey = v
+	}
+	if v := values["TEAMS_WEBHOOK_URL"]; v != "" {
+		out.TeamsWebhookURL = v
+	}
+	return out
 }
 
 func actionSkipReason(wctx WorkflowContext, filePath string) string {

@@ -11,37 +11,72 @@ export const EXTENDED_HELP_TOPICS = {
         <article class="about-doc about-doc-wide">
           <h2>Visual Workflow Builder</h2>
           <p class="about-lead">
-            Open <strong>Workflow</strong> in the sidebar, pick a CI/CD gateway, and draw its remediation DAG.
-            Everyone can open the graph and run a simulation. Lead and Manager can edit, enable, and save it.
-            When <em>Enable workflow</em> is saved, the graph replaces legacy keyword AUTO-RUN for that gateway only.
+            The <strong>?</strong> button on the workflow toolbar opens this page.
+            Open <strong>Workflow</strong> in the sidebar, then <strong>Open workflow</strong> on one gateway.
+            Everyone can read the graph. Lead and Manager can edit, enable, and save it.
+            A saved enabled graph replaces legacy AUTO-RUN for that gateway only. A new CI failure is required. Older incidents are not replayed.
           </p>
-          <h3>Node types</h3>
+          <h3>Space</h3>
+          <p>The graph stays inside the frame. Scroll bars appear only when a node is placed outside that frame.</p>
+          <h3>How to configure</h3>
+          <ol class="about-detail-list">
+            <li><strong>Plugin Engine → Configure</strong> - General settings for that plugin: server, token, channel, project, recipients. Each plugin has its own fields. Save there. The message is not edited on this screen.</li>
+            <li><strong>CI/CD Gateways</strong> - Edit the gateway and <strong>Add configuration</strong> for the same plugin. An empty routing list blocks every workflow action.</li>
+            <li><strong>Workflow</strong> - Nodes are rectangles. <strong>Edit</strong> opens the configuration. A condition sets the field, the operator, and the value. An action chooses the plugin and its message. Leave the message empty to keep the plugin default.</li>
+            <li><strong>Enable workflow</strong> and <strong>Save</strong>. The badge must be Active. A draft does not run.</li>
+          </ol>
+          <h3>Nodes</h3>
           <table class="about-table">
             <thead><tr><th>Node</th><th>Role</th></tr></thead>
             <tbody>
-              <tr><td><strong>Trigger</strong></td><td>Single entry when an alert is ingested (one per graph).</td></tr>
-              <tr><td><strong>Condition</strong></td><td><strong>Incident name</strong> is the stored title (Starts with, Contains, Equals). <strong>Tag</strong> is only FLAKY or PERF. Status, error text, and console logs are separate. <em>Top</em> output = true, <em>bottom</em> = false.</td></tr>
-              <tr><td><strong>Action</strong></td><td>Runs one native plugin (Slack, Jira, webhook, …). The output continues the graph, so actions and conditions can be chained. Kubernetes restart is not available.</td></tr>
+              <tr><td><strong>Trigger</strong></td><td>One entry. It fires when a CI alert is ingested.</td></tr>
+              <tr><td><strong>Condition</strong></td><td>Top output is true. Bottom output is false. Connect the action to the output that should run.</td></tr>
+              <tr><td><strong>Action</strong></td><td>One plugin. Its output continues the graph, so several actions and conditions can be chained.</td></tr>
             </tbody>
           </table>
-          <h3>Typical setup (Lead+)</h3>
-          <ol class="about-detail-list">
-            <li><strong>Plugin Engine</strong> - Manager enables routing on integrations.</li>
-            <li><strong>CI/CD Gateways</strong> - Add configuration (channels, Jira key, …).</li>
-            <li><strong>Workflow</strong> - Open the Workflow section, filter the gateway list, and click a row. Lead and Manager can edit. The status mark shows Active, Draft, or Legacy. Show tester opens the simulation when you need it.</li>
-            <li><strong>Simulate</strong> - Dry-run with sample incident (no external calls).</li>
-            <li><strong>Enable workflow</strong> + <strong>Save</strong> - Activates DAG.</li>
-          </ol>
+          <h3>Condition fields</h3>
+          <table class="about-table">
+            <thead><tr><th>Field</th><th>What it compares</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Incident name</strong></td><td>The title on the incident card. The Flaky badge is ignored, so <em>Equals</em> or <em>Starts with</em> <code>[RobotFramework]</code> matches <code>[RobotFramework] Saucedemo…</code>. <em>Contains</em> finds a word anywhere. <em>Equals</em> of a full sentence must be the whole title.</td></tr>
+              <tr><td><strong>Tag (FLAKY, PERF)</strong></td><td>Only those two marks. A framework name is not a tag.</td></tr>
+              <tr><td><strong>Status</strong></td><td>Critical, resolved, and the other statuses.</td></tr>
+              <tr><td><strong>Error message</strong></td><td>The failure text.</td></tr>
+              <tr><td><strong>Console logs</strong></td><td>The console text.</td></tr>
+            </tbody>
+          </table>
+          <h3>Message placeholders</h3>
+          <p><code>{{name}}</code> <code>{{status}}</code> <code>{{error}}</code> <code>{{console}}</code> are replaced with the incident. Subject, body, title, description, and comment are the message fields. They differ per plugin and are stored on that gateway's action.</p>
+          <p>Email actions open a fixed mail frame. The logo, the header, and the footer stay as they are. The toolbar formats only the text you write: bold, italic, underline, color, font size, bullet and numbered lists, symbols, emoji, and code. The same frame is used when the message is sent.</p>
+          <h3>Plugin fields</h3>
+          <ul class="about-detail-list">
+            <li><strong>Email SMTP</strong> - Server, port, username, password, from, to, cc, subject, body.</li>
+            <li><strong>SendGrid</strong> - API key, from, from name, to, cc, subject, body.</li>
+            <li><strong>Slack</strong> - Webhook, channel, bot name, icon, color, title, message.</li>
+            <li><strong>Jira</strong> - URL, email, token, issue type, project, priority, labels, assignee, components, summary, description.</li>
+            <li><strong>Teams</strong> - Webhook, theme color, title, subtitle, message.</li>
+            <li><strong>PagerDuty</strong> - Routing key, events URL, severity, source, component, group, class, summary, custom details.</li>
+            <li><strong>Opsgenie</strong> - API key, API URL, team, priority, tags, message, description.</li>
+            <li><strong>VictorOps</strong> - Routing URL, message type, entity, entity id, state message.</li>
+            <li><strong>Datadog</strong> - API key, application key, site, tags, alert type, priority, source, title, text.</li>
+            <li><strong>GitHub</strong> - Token, owner, repository, workflow file, git ref, and an optional dispatch note. The note is sent only when the workflow file declares an input named <code>note</code>.</li>
+            <li><strong>Webhook</strong> - URL, QA URL, authorization header, event name, message.</li>
+            <li><strong>TestRail</strong> - URL, user, API key, project id, run id, case id, status id (5 is Failed), comment.</li>
+            <li><strong>Zephyr</strong> - API URL, token, project key, test case key, status, environment, comment.</li>
+            <li><strong>Xray</strong> - Client id, client secret, cloud URL, project key, test key, test execution key, status, summary, comment.</li>
+            <li><strong>Kubernetes</strong> - Context, namespace, deployment, container. The restart action is not executed.</li>
+          </ul>
           <h3>Toolbar</h3>
           <ul class="about-detail-list">
-            <li><strong>Example</strong> - Flaky → Slack (true) / Jira (false).</li>
-            <li><strong>Simulate / Run simulation</strong> - Dry-run only. Shows the path, the plugins that would run, and why a node was skipped. It does not call Slack, Jira, or any other vendor.</li>
-            <li><strong>Draft</strong> - Save without Enable keeps legacy AUTO-RUN.</li>
-            <li><strong>Reset</strong> - Deletes DAG; returns to Legacy mode.</li>
+            <li><strong>?</strong> - Opens this guide.</li>
+            <li><strong>Example</strong> - A sample graph: flaky title to Slack, otherwise Jira.</li>
+            <li><strong>Fit</strong> - Frames the nodes.</li>
+            <li><strong>Reset</strong> - Deletes the graph and returns to legacy AUTO-RUN.</li>
+            <li><strong>Back to gateways</strong> - Returns to the list. Active, Draft, and Legacy are the status marks.</li>
           </ul>
           <div class="about-callout">
-            <strong>Allowed plugins</strong> - Only integrations listed in the gateway routing matrix run.
-            An empty routing list blocks all workflow actions (by design).
+            <strong>Allowed plugins</strong> - The action runs only when that plugin is on the gateway routing list.
+            An empty list blocks the graph.
           </div>
         </article>`
     },

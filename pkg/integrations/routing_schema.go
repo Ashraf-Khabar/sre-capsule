@@ -14,7 +14,7 @@ type RoutingField struct {
 func RoutingFieldsForIntegration(integration string) []RoutingField {
 	var out []RoutingField
 	for _, f := range ConfigFieldsForIntegration(integration) {
-		if !f.Gateway {
+		if !f.Gateway || f.Group == "message" {
 			continue
 		}
 		out = append(out, RoutingField{
