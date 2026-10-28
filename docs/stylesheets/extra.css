@@ -353,26 +353,38 @@ html {
 
 .mermaid {
   font-size: var(--qc-text-sm);
-  margin: 1.1rem 0;
-  padding: 1rem 0.85rem;
-  border: 1px solid var(--qc-border);
-  border-radius: 12px;
+  margin: 1.25rem 0;
+  padding: 1.15rem 1rem 1rem;
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  border-radius: 18px;
   background:
-    radial-gradient(circle at 1px 1px, rgba(37, 99, 235, 0.16) 1px, transparent 0) 0 0 / 18px 18px,
-    var(--qc-surface);
-  box-shadow: var(--qc-shadow);
+    radial-gradient(900px 220px at 0% 0%, rgba(56, 189, 248, 0.18), transparent 55%),
+    radial-gradient(700px 240px at 100% 100%, rgba(99, 102, 241, 0.16), transparent 50%),
+    linear-gradient(165deg, #f8fbff 0%, #eef2ff 48%, #ecfeff 100%);
+  box-shadow: 0 18px 40px rgba(49, 46, 129, 0.08);
   overflow-x: auto;
 }
 
 [data-md-color-scheme="slate"] .mermaid {
+  border-color: rgba(125, 211, 252, 0.28);
   background:
-    radial-gradient(circle at 1px 1px, rgba(147, 197, 253, 0.16) 1px, transparent 0) 0 0 / 18px 18px,
-    var(--qc-surface);
+    radial-gradient(900px 220px at 0% 0%, rgba(34, 211, 238, 0.16), transparent 55%),
+    radial-gradient(700px 240px at 100% 100%, rgba(99, 102, 241, 0.22), transparent 50%),
+    linear-gradient(165deg, #0b1220 0%, #111827 52%, #0f172a 100%);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
 }
 
 .mermaid svg {
   max-width: 100%;
   height: auto;
+  overflow: visible;
+}
+
+.mermaid .nodeLabel,
+.mermaid .edgeLabel,
+.mermaid foreignObject div {
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .mermaid svg .node rect,
@@ -382,27 +394,16 @@ html {
 .mermaid svg g.actor rect,
 .mermaid svg .actor-box,
 .mermaid svg .er.entityBox {
-  animation: qc-node-in 0.55s ease both;
+  animation: qc-node-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-.mermaid svg g.edgePath path,
-.mermaid svg path.flowchart-link,
-.mermaid svg .messageLine0,
-.mermaid svg .messageLine1,
-.mermaid svg path.relationshipLine,
-.mermaid svg .transition,
-.mermaid svg .loopLine {
-  stroke-dasharray: 7 6;
-  animation: qc-flow 1.8s linear infinite;
+.mermaid svg .qc-orb {
+  filter: drop-shadow(0 0 6px #22d3ee);
 }
 
 @keyframes qc-node-in {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
   to { opacity: 1; transform: none; }
-}
-
-@keyframes qc-flow {
-  to { stroke-dashoffset: -26; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -412,15 +413,11 @@ html {
   .mermaid svg .node path,
   .mermaid svg g.actor rect,
   .mermaid svg .actor-box,
-  .mermaid svg .er.entityBox,
-  .mermaid svg g.edgePath path,
-  .mermaid svg path.flowchart-link,
-  .mermaid svg .messageLine0,
-  .mermaid svg .messageLine1,
-  .mermaid svg path.relationshipLine,
-  .mermaid svg .transition,
-  .mermaid svg .loopLine {
+  .mermaid svg .er.entityBox {
     animation: none;
+  }
+  .mermaid svg .qc-orb {
+    display: none;
   }
 }
 
