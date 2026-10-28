@@ -98,41 +98,48 @@
     };
   }
 
-  function restore(node) {
-    var text = node.getAttribute("data-qc-source");
-    if (!text) return;
-    node.removeAttribute("data-processed");
-    node.textContent = text;
+  var seq = 0;
+
+  function own(node) {
+    if (!node || node.getAttribute("data-qc-owned")) return;
+    var source = node.getAttribute("data-qc-source");
+    if (!source) return;
+    var text = (node.textContent || "").trim();
+    if (text && text.charAt(0) !== "<" && !node.getAttribute("data-qc-pending")) return;
+    var mine = document.createElement("div");
+    mine.className = "mermaid";
+    mine.setAttribute("data-qc-owned", "1");
+    mine.setAttribute("data-qc-source", source);
+    mine.setAttribute("tabindex", "0");
+    mine.setAttribute("role", "button");
+    mine.setAttribute("aria-label", "Open this diagram larger");
+    node.replaceWith(mine);
+    paint(mine, source);
   }
 
-  var rendering = false;
-
-  async function render() {
-    if (rendering || !window.mermaid) return;
-    var nodes = document.querySelectorAll(".mermaid");
-    if (!nodes.length) return;
-    rendering = true;
-    nodes.forEach(function (node) {
-      if (!node.getAttribute("data-qc-source")) {
-        var raw = (node.textContent || "").trim();
-        if (raw && raw.charAt(0) !== "<") node.setAttribute("data-qc-source", raw);
-      }
-      restore(node);
-    });
+  async function paint(node, source) {
+    if (!window.mermaid) return;
     mermaid.initialize(config());
     try {
-      await mermaid.run({ nodes: nodes, suppressErrors: true });
-    } catch (err) {
-      /* keep the last successful drawing */
-    }
-    nodes.forEach(function (node) {
+      var drawn = await mermaid.render("qcDiag" + (++seq), source);
+      var svgText = typeof drawn === "string" ? drawn : drawn.svg;
+      if (!node.isConnected) return;
+      node.innerHTML = svgText;
       var svg = node.querySelector("svg");
-      if (svg) dress(svg);
-      node.setAttribute("tabindex", "0");
-      node.setAttribute("role", "button");
-      node.setAttribute("aria-label", "Open this diagram larger");
-    });
-    rendering = false;
+      if (!svg) return;
+      svg.removeAttribute("width");
+      svg.style.maxWidth = "100%";
+      svg.style.height = "auto";
+      dress(svg);
+    } catch (err) {
+      node.textContent = "This diagram could not be drawn.";
+    }
+  }
+
+  function adopt(node) {
+    if (!node || node.nodeType !== 1) return;
+    if (node.classList && node.classList.contains("mermaid")) own(node);
+    if (node.querySelectorAll) node.querySelectorAll(".mermaid").forEach(own);
   }
 
   function dress(svg) {
@@ -307,20 +314,27 @@
       var source = card.getAttribute("data-qc-source");
       if (source) openLightbox(source);
     });
+    new MutationObserver(function (records) {
+      records.forEach(function (rec) {
+        rec.addedNodes.forEach(adopt);
+      });
+    }).observe(document.body, { childList: true, subtree: true });
+    document.querySelectorAll(".mermaid").forEach(own);
     if (window.document$ && typeof document$.subscribe === "function") {
       document$.subscribe(function () {
         closeLightbox();
-        render();
+        document.querySelectorAll(".mermaid").forEach(own);
       });
-    } else {
-      render();
     }
     var last = document.body.getAttribute("data-md-color-scheme");
     new MutationObserver(function () {
       var now = document.body.getAttribute("data-md-color-scheme");
       if (now === last) return;
       last = now;
-      render();
+      document.querySelectorAll(".mermaid[data-qc-owned]").forEach(function (node) {
+        var source = node.getAttribute("data-qc-source");
+        if (source) paint(node, source);
+      });
     }).observe(document.body, { attributes: true, attributeFilter: ["data-md-color-scheme"] });
   }
 
