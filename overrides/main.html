@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <script>
+    (function () {
+      var queue = window.__qcMermaidQueue = [];
+      function stash(node) {
+        if (!node || node.nodeType !== 1 || !node.getAttribute) return;
+        if (node.getAttribute("data-qc-owned") || node.getAttribute("data-qc-pending")) return;
+        var src = node.getAttribute("data-qc-source");
+        if (src) queue.push(src);
+      }
+      function claim(node) {
+        if (!node || node.nodeType !== 1 || !node.classList || !node.classList.contains("mermaid")) return;
+        if (node.getAttribute("data-qc-owned") || node.getAttribute("data-qc-source")) return;
+        var text = (node.textContent || "").trim();
+        if (text && text.charAt(0) !== "<") {
+          node.setAttribute("data-qc-source", text);
+          return;
+        }
+        var src = queue.shift();
+        if (!src) return;
+        node.setAttribute("data-qc-source", src);
+        node.setAttribute("data-qc-pending", "1");
+      }
+      function scan(root) {
+        if (!root || root.nodeType !== 1) return;
+        claim(root);
+        if (root.querySelectorAll) root.querySelectorAll(".mermaid").forEach(claim);
+      }
+      new MutationObserver(function (records) {
+        records.forEach(function (rec) {
+          rec.removedNodes.forEach(stash);
+          rec.addedNodes.forEach(function (node) {
+            if (node.nodeType === 1) scan(node);
+          });
+        });
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    })();
+  </script>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ 'javascripts/mermaid-theme.js' | url }}"></script>
+{% endblock %}
