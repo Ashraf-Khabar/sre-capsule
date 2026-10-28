@@ -4,7 +4,7 @@ icon: material/vector-polyline
 
 # Design Schemas & Diagrams
 
-Reference architecture for **SRE Capsule**. Diagrams use [Mermaid](https://mermaid.js.org/). On this site each one is redrawn after render: rounded gradient nodes, a soft glow, and a light that travels along every link (`docs/javascripts/mermaid-theme.js`). GitHub shows the same source as plain Mermaid, without that motion. **Reduce motion** in the operating system hides the traveling lights.
+Reference architecture for **SRE Capsule**. Diagrams use [Mermaid](https://mermaid.js.org/). On this site each one is redrawn after render: rounded gradient nodes that rise and settle, links that brighten, and two lights that travel along every arrow (`docs/javascripts/mermaid-theme.js`). Click a diagram, or focus it and press Enter, to open it large. Escape or the backdrop closes it. GitHub shows the same source as plain Mermaid, without that motion. **Reduce motion** hides the traveling lights.
 
 Related narrative: [System Architecture](architecture.md) · [Platform User Guide](platform-user-guide.md)
 

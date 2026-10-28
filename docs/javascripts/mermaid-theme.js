@@ -128,6 +128,9 @@
     nodes.forEach(function (node) {
       var svg = node.querySelector("svg");
       if (svg) dress(svg);
+      node.setAttribute("tabindex", "0");
+      node.setAttribute("role", "button");
+      node.setAttribute("aria-label", "Open this diagram larger");
     });
     rendering = false;
   }
@@ -209,29 +212,106 @@
       path.setAttribute("id", id);
       path.setAttribute("stroke", stroke);
       path.setAttribute("stroke-width", "2.15");
-      var orb = document.createElementNS(ns, "circle");
-      orb.setAttribute("class", "qc-orb");
-      orb.setAttribute("r", "4.2");
-      orb.setAttribute("fill", dark ? "#a5f3fc" : "#22d3ee");
-      var motion = document.createElementNS(ns, "animateMotion");
-      motion.setAttribute("dur", (2.1 + (count % 6) * 0.28) + "s");
-      motion.setAttribute("repeatCount", "indefinite");
-      motion.setAttribute("begin", (count * 0.18) + "s");
-      motion.setAttribute("rotate", "auto");
-      var mpath = document.createElementNS(ns, "mpath");
-      mpath.setAttribute("href", "#" + id);
-      mpath.setAttributeNS("http://www.w3.org/1999/xlink", "href", "#" + id);
-      motion.appendChild(mpath);
-      orb.appendChild(motion);
-      host.appendChild(orb);
+      path.setAttribute("class", (path.getAttribute("class") || "") + " qc-live-edge");
+      [0, 0.45].forEach(function (lag, orbIndex) {
+        var orb = document.createElementNS(ns, "circle");
+        orb.setAttribute("class", "qc-orb");
+        orb.setAttribute("r", orbIndex === 0 ? "4.6" : "2.6");
+        orb.setAttribute("fill", dark ? "#a5f3fc" : "#22d3ee");
+        orb.setAttribute("opacity", orbIndex === 0 ? "1" : "0.65");
+        var motion = document.createElementNS(ns, "animateMotion");
+        motion.setAttribute("dur", (1.7 + (count % 5) * 0.22) + "s");
+        motion.setAttribute("repeatCount", "indefinite");
+        motion.setAttribute("begin", (count * 0.12 + lag) + "s");
+        motion.setAttribute("rotate", "auto");
+        var mpath = document.createElementNS(ns, "mpath");
+        mpath.setAttribute("href", "#" + id);
+        mpath.setAttributeNS("http://www.w3.org/1999/xlink", "href", "#" + id);
+        motion.appendChild(mpath);
+        orb.appendChild(motion);
+        host.appendChild(orb);
+      });
       count += 1;
     });
     if (count) svg.appendChild(host);
   }
 
+  function lightbox() {
+    var box = document.querySelector(".qc-lightbox");
+    if (box) return box;
+    box = document.createElement("div");
+    box.className = "qc-lightbox";
+    box.hidden = true;
+    box.innerHTML = '<button type="button" class="qc-lightbox__backdrop" aria-label="Close diagram"></button><div class="qc-lightbox__panel" role="dialog" aria-modal="true" aria-label="Diagram"><button type="button" class="qc-lightbox__close" aria-label="Close">×</button><div class="qc-lightbox__stage"></div></div>';
+    document.body.appendChild(box);
+    box.querySelector(".qc-lightbox__backdrop").addEventListener("click", closeLightbox);
+    box.querySelector(".qc-lightbox__close").addEventListener("click", closeLightbox);
+    return box;
+  }
+
+  function closeLightbox() {
+    var box = document.querySelector(".qc-lightbox");
+    if (!box || box.hidden) return;
+    box.hidden = true;
+    box.querySelector(".qc-lightbox__stage").textContent = "";
+    document.body.classList.remove("qc-lightbox-open");
+  }
+
+  async function openLightbox(source) {
+    if (!window.mermaid || !source) return;
+    var box = lightbox();
+    var stage = box.querySelector(".qc-lightbox__stage");
+    stage.textContent = "Drawing…";
+    box.hidden = false;
+    document.body.classList.add("qc-lightbox-open");
+    var large = config();
+    large.themeVariables = Object.assign({}, large.themeVariables, { fontSize: "18px" });
+    large.flowchart = Object.assign({}, large.flowchart, { padding: 22, nodeSpacing: 48, rankSpacing: 60 });
+    mermaid.initialize(large);
+    try {
+      var drawn = await mermaid.render("qcLarge" + Date.now(), source);
+      var svgText = typeof drawn === "string" ? drawn : drawn.svg;
+      stage.innerHTML = svgText;
+      var svg = stage.querySelector("svg");
+      if (svg) {
+        svg.removeAttribute("width");
+        svg.removeAttribute("height");
+        dress(svg);
+      }
+    } catch (err) {
+      stage.textContent = "This diagram could not be enlarged.";
+    }
+    mermaid.initialize(config());
+    var closeBtn = box.querySelector(".qc-lightbox__close");
+    if (closeBtn) closeBtn.focus();
+  }
+
   function boot() {
+    document.addEventListener("click", function (event) {
+      var card = event.target.closest && event.target.closest(".mermaid");
+      if (!card || card.closest(".qc-lightbox")) return;
+      if (event.target.closest("a, button")) return;
+      var source = card.getAttribute("data-qc-source");
+      if (!source) return;
+      openLightbox(source);
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        closeLightbox();
+        return;
+      }
+      if (event.key !== "Enter" && event.key !== " ") return;
+      var card = event.target.closest && event.target.closest(".mermaid");
+      if (!card) return;
+      event.preventDefault();
+      var source = card.getAttribute("data-qc-source");
+      if (source) openLightbox(source);
+    });
     if (window.document$ && typeof document$.subscribe === "function") {
-      document$.subscribe(function () { render(); });
+      document$.subscribe(function () {
+        closeLightbox();
+        render();
+      });
     } else {
       render();
     }

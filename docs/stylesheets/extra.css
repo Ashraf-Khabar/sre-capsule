@@ -352,9 +352,11 @@ html {
 }
 
 .mermaid {
+  position: relative;
+  cursor: zoom-in;
   font-size: var(--qc-text-sm);
   margin: 1.25rem 0;
-  padding: 1.15rem 1rem 1rem;
+  padding: 1.35rem 1rem 1.7rem;
   border: 1px solid rgba(99, 102, 241, 0.28);
   border-radius: 18px;
   background:
@@ -387,6 +389,27 @@ html {
   letter-spacing: -0.01em;
 }
 
+.mermaid::after {
+  content: "Click to enlarge";
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #4f46e5;
+  pointer-events: none;
+}
+
+[data-md-color-scheme="slate"] .mermaid::after {
+  color: #67e8f9;
+}
+
+.mermaid:focus {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
 .mermaid svg .node rect,
 .mermaid svg .node polygon,
 .mermaid svg .node circle,
@@ -394,16 +417,104 @@ html {
 .mermaid svg g.actor rect,
 .mermaid svg .actor-box,
 .mermaid svg .er.entityBox {
-  animation: qc-node-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation:
+    qc-node-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both,
+    qc-breathe 3.2s ease-in-out 0.8s infinite;
+}
+
+.mermaid svg .qc-live-edge {
+  animation: qc-edge 2.2s ease-in-out infinite;
 }
 
 .mermaid svg .qc-orb {
-  filter: drop-shadow(0 0 6px #22d3ee);
+  filter: drop-shadow(0 0 7px #22d3ee);
 }
 
 @keyframes qc-node-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.96); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes qc-breathe {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes qc-edge {
+  0%, 100% { stroke-opacity: 0.45; }
+  50% { stroke-opacity: 1; }
+}
+
+body.qc-lightbox-open {
+  overflow: hidden;
+}
+
+.qc-lightbox[hidden] {
+  display: none;
+}
+
+.qc-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+}
+
+.qc-lightbox__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: rgba(8, 12, 24, 0.72);
+  cursor: zoom-out;
+}
+
+.qc-lightbox__panel {
+  position: relative;
+  z-index: 1;
+  width: min(1200px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  margin: 16px auto;
+  padding: 42px 18px 18px;
+  overflow: auto;
+  border-radius: 18px;
+  background:
+    radial-gradient(900px 220px at 0% 0%, rgba(34, 211, 238, 0.18), transparent 55%),
+    linear-gradient(165deg, #f8fbff 0%, #eef2ff 100%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+[data-md-color-scheme="slate"] .qc-lightbox__panel {
+  background:
+    radial-gradient(900px 220px at 0% 0%, rgba(34, 211, 238, 0.16), transparent 55%),
+    linear-gradient(165deg, #0b1220 0%, #111827 100%);
+}
+
+.qc-lightbox__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  background: transparent;
+  color: #312e81;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+[data-md-color-scheme="slate"] .qc-lightbox__close {
+  color: #e7eef6;
+}
+
+.qc-lightbox__stage svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 78vh;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -413,7 +524,8 @@ html {
   .mermaid svg .node path,
   .mermaid svg g.actor rect,
   .mermaid svg .actor-box,
-  .mermaid svg .er.entityBox {
+  .mermaid svg .er.entityBox,
+  .mermaid svg .qc-live-edge {
     animation: none;
   }
   .mermaid svg .qc-orb {
