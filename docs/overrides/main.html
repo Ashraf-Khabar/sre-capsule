@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <script>
+    (function () {
+      function remember(node) {
+        if (!node || node.nodeType !== 1 || !node.classList || !node.classList.contains("mermaid")) return;
+        if (node.querySelector("svg")) return;
+        if (node.getAttribute("data-qc-source")) return;
+        var text = (node.textContent || "").trim();
+        if (text) node.setAttribute("data-qc-source", text);
+      }
+      function scan(root) {
+        if (!root || root.nodeType !== 1) return;
+        if (root.classList && root.classList.contains("mermaid")) remember(root);
+        if (root.querySelectorAll) root.querySelectorAll(".mermaid").forEach(remember);
+      }
+      new MutationObserver(function (records) {
+        records.forEach(function (rec) {
+          rec.addedNodes.forEach(function (node) {
+            if (node.nodeType === 1) scan(node);
+          });
+        });
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    })();
+  </script>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ 'javascripts/mermaid-theme.js' | url }}"></script>
+{% endblock %}

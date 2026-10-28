@@ -29,7 +29,7 @@ See [Editions](../guides/editions-community-enterprise.md).
 | **Execution Hub** | Observer | Pipeline runs, env tags (PROD, STAGING, INTEGRATION, DEV) |
 | **Incidents** | Observer | Detail, resolve, logs, self-healing context, artifacts |
 | **Self-Healing Hub** | Observer | Open failures, MCP prompts, framework-agnostic categories |
-| **Quarantine** | Lead | Deny-list, flaky stats, CI gate alignment |
+| **Quarantine** | Lead | Screen exists. The engine is off in Community, so nothing is skipped. |
 | **CI/CD Gateways** | Manager | Projects, API keys, webhook URLs, routing matrix |
 | **Plugin Engine** | Lead | Native integrations (Slack, Jira, …), test run |
 | **Visual Workflow** | Lead | Drawflow DAG per gateway, simulate, save |

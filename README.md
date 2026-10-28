@@ -29,7 +29,7 @@
 
 ## Why SRE Capsule?
 
-When a shared dependency fails, hundreds of tests can fail at once. SRE Capsule **deduplicates** by fingerprint and pipeline run, tags **flaky** and **performance** regressions, stores **artifacts**, and routes alerts through **Slack, Jira, Teams**, and more — without bash remotes on the server.
+A pipeline log is a signal. SRE Capsule keeps the record the team works from: the failure on its gateway and its suite, the owner, the status, and the steps of the run. The same open failure in one run stays one incident. A lead or a manager can analyze it, confirm a change, and re-run. An enabled workflow can act on ingest. Plugin Engine holds the connection. The workflow holds the message. Managers read DORA and FinOps on that same record. The product does not invent a cause, and it does not call Slack, Jira, or a cluster from the incident Runbook button.
 
 ---
 

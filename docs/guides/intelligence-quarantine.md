@@ -15,6 +15,8 @@ flowchart TB
     HOOK --> QSTAT[Quarantine RecordTransition]
 ```
 
+In Community the quarantine engine is off (`QuarantineEngine` is nil). Ingest does not skip an incident, and CI is not told to skip a test. The diagram above is the path the code would take if that engine were running.
+
 More diagrams: [Design Schemas & Diagrams](design-diagrams.md) §11–12.
 
 ---

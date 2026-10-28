@@ -622,7 +622,7 @@ function addDefaultStarterGraph() {
 }
 
 const CONDITION_FIELD_HINTS = {
-    name: 'The title on the incident card. The Flaky badge is ignored, so [RobotFramework] matches a Robot title.',
+    name: '',
     tag: 'Only the tags FLAKY and PERF. RobotFramework is not a tag.',
     status: 'The incident status, such as Critical or resolved.',
     error: 'The failure text, not the test title.',
@@ -736,7 +736,10 @@ function applyConditionToControls(nodeEl, when) {
 
 function setConditionHint(nodeEl, uiField) {
     const hint = nodeEl?.querySelector('.wf-cond-hint');
-    if (hint) hint.textContent = CONDITION_FIELD_HINTS[uiField] || '';
+    if (!hint) return;
+    const text = CONDITION_FIELD_HINTS[uiField] || '';
+    hint.textContent = text;
+    hint.hidden = !text;
 }
 
 function buildConditionExpr(uiField, match, value) {

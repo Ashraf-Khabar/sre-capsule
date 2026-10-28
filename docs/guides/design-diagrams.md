@@ -4,7 +4,7 @@ icon: material/vector-polyline
 
 # Design Schemas & Diagrams
 
-Reference architecture for **SRE Capsule**. All diagrams use [Mermaid](https://mermaid.js.org/); they render in MkDocs Material and on GitHub.
+Reference architecture for **SRE Capsule**. Diagrams use [Mermaid](https://mermaid.js.org/). On this site they render with the themed, animated style in `docs/javascripts/mermaid-theme.js` (rounded flow, accent edges, a slow dash on the links). GitHub renders the same source as plain Mermaid, without that animation. Respect **Reduce motion** in the operating system and the animation stops.
 
 Related narrative: [System Architecture](architecture.md) · [Platform User Guide](platform-user-guide.md)
 

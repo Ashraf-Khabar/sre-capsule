@@ -6,20 +6,18 @@ icon: material/home
 
 **Version: 1.0.17-beta**
 
-**SRE Flight Recorder** (SRE Capsule) is an enterprise-grade Site Reliability Engineering (SRE) control plane that ingests CI/CD and End-to-End (E2E) test failures, correlates duplicate alerts, stores visual test evidence, routes notifications to the right teams, and tracks resolution metrics in real time.
+**SRE Flight Recorder** (SRE Capsule) is the control plane for CI/CD and end-to-end test failures. A failure becomes an incident on a gateway and a suite: status, owner, history, and the steps of that run. Leads and managers work the incident. Managers read reliability and cost. The product records what happened. It does not invent a cause.
 
 ---
 
 ## What Problem Does It Solve?
 
-When a pipeline fails, engineers typically:
+A pipeline log is a signal. It is not the record the team works from. SRE Capsule keeps that record.
 
-1. Open the CI/CD platform and scroll through thousands of log lines.
-2. Manually create a Jira ticket.
-3. Manually notify Slack or Microsoft Teams.
-4. Lose context when the same test fails again on the next run.
-
-**SRE Capsule automates this workflow** — from ingestion to notification to resolution tracking, with optional Playwright traces and local developer feedback via CLI.
+1. **The failure stays with the suite and the gateway.** The next run of the same test does not start from a blank page. Activity opens the steps. Suite health compares the last run with the last green run.
+2. **Someone owns the response, or the gap is visible.** Detected, acknowledged, mitigated, and resolved are different moments. Severity says how badly it hurts. An incident with no owner stays on the Unowned queue.
+3. **The work on that failure is explicit.** A lead or a manager can analyze it, confirm a change, and re-run. A workflow on that gateway runs only when it is enabled. The graph holds the condition and the message. Plugin Engine holds the connection. The incident **Runbook** button does not call Slack, Jira, or a cluster.
+4. **Reliability and cost stay on the same record.** Managers read deployment frequency, lead time, change-failure rate, MTTR, and the error budget. A maintenance window explains a failure you already expect. The incident stays on Telemetry Stream.
 
 ---
 
@@ -36,7 +34,7 @@ When a pipeline fails, engineers typically:
 | **Plugin Engine** | JSON manifests under `plugins/`; loaded once at startup; manual test from UI. |
 | **Visual Workflow DAG** | Per-gateway Drawflow editor; conditions + native actions; simulate before save. |
 | **AI RCA** | OpenAI / Ollama async root-cause summaries per incident. |
-| **Smart Quarantine** | Auto/manual deny-list; CI API to skip quarantined tests. |
+| **Quarantine** | The deny-list engine is off in Community. Incidents are not skipped. |
 | **Runbooks** | One-click apply validated workflow templates (502, flaky, OOM, …). |
 | **DORA metrics** | Deployment frequency, lead time, CFR, MTTR, per-gateway error budget (SLO 1–50%), maintenance windows. |
 | **FinOps & Analytics** | MTTR, CI minutes lost, flaky cost, customizable dashboard charts, PDF export. |
@@ -51,29 +49,26 @@ When a pipeline fails, engineers typically:
 
 ```mermaid
 flowchart LR
-    CI[CI/CD Pipeline] -->|JSON or JUnit XML| WH[Webhook API]
-    PW[Playwright Reporter] -->|Fire-and-forget| WH
-    CLI[srecapsule CLI] -->|check-flaky| API[Incidents API]
-    WH --> ING[Ingestion + Quarantine gate]
-    ING --> DB[(SQLite)]
-    ING --> WF{Workflow DAG?}
-    WF -->|yes| WFE[WorkflowEngine]
+    CI[CI/CD pipeline] -->|JSON or JUnit XML| WH[Webhook]
+    WH --> ING[Ingest]
+    ING --> DB[(Incident on gateway and suite)]
+    ING --> WF{Enabled workflow?}
+    WF -->|yes| WFE[Workflow graph]
     WF -->|no| LEG[Legacy AUTO-RUN]
-    WFE --> PLG[Go Integration Engine]
+    WFE --> PLG[Plugin action]
     LEG --> PLG
-    ING --> HOOK[RCA + Quarantine hooks]
-    DB --> UI[Dashboard]
-    PLG --> Slack[Slack / Jira / …]
+    DB --> UI[Telemetry Stream]
+    PLG --> OUT[Plugin you configured]
 ```
 
 See the full breakdown in [System Architecture](guides/architecture.md).
 
-1. **Ingestion** — `POST /api/webhooks/` (JSON) or `POST /api/webhooks/upload` (JUnit XML).
-2. **Enrichment** — Dimensions, Jira tags, execution time, perf regression, flaky tagging.
-3. **Correlation** — Fingerprint + `pipeline_run_id` anti-spam per run.
-4. **Remediation** — Visual workflow DAG **or** legacy AUTO-RUN plugins (async, bounded concurrency).
-5. **Super-App hooks** — AI RCA and quarantine stats (async, non-blocking).
-6. **Artifacts** — Multipart upload; local storage (S3 stub for future enterprise).
+1. **Ingestion** - `POST /api/webhooks/` (JSON) or `POST /api/webhooks/upload` (JUnit XML).
+2. **Enrichment** - Dimensions, execution time, a performance regression, and the flaky tag when the same test fails again after a resolve.
+3. **Correlation** - Fingerprint plus `pipeline_run_id`, so the same open failure in one run is one incident.
+4. **Record** - The incident stays on that gateway and that suite: status, owner, and the steps.
+5. **Remediation** - An enabled workflow runs the graph. Otherwise legacy AUTO-RUN can call a plugin that is on the gateway allow list. The connection stays in Plugin Engine. The workflow action holds the message for that gateway.
+6. **Evidence** - Artifacts upload to local storage. AI RCA, when a manager has enabled a provider, may summarize the record. It does not add a cause that is not already there.
 
 ---
 

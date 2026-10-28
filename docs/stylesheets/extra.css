@@ -353,11 +353,75 @@ html {
 
 .mermaid {
   font-size: var(--qc-text-sm);
-  margin: 1rem 0;
-  padding: 0.65rem;
+  margin: 1.1rem 0;
+  padding: 1rem 0.85rem;
   border: 1px solid var(--qc-border);
-  border-radius: var(--qc-radius);
-  background: var(--qc-surface);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(37, 99, 235, 0.16) 1px, transparent 0) 0 0 / 18px 18px,
+    var(--qc-surface);
+  box-shadow: var(--qc-shadow);
+  overflow-x: auto;
+}
+
+[data-md-color-scheme="slate"] .mermaid {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(147, 197, 253, 0.16) 1px, transparent 0) 0 0 / 18px 18px,
+    var(--qc-surface);
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid svg .node rect,
+.mermaid svg .node polygon,
+.mermaid svg .node circle,
+.mermaid svg .node path,
+.mermaid svg g.actor rect,
+.mermaid svg .actor-box,
+.mermaid svg .er.entityBox {
+  animation: qc-node-in 0.55s ease both;
+}
+
+.mermaid svg g.edgePath path,
+.mermaid svg path.flowchart-link,
+.mermaid svg .messageLine0,
+.mermaid svg .messageLine1,
+.mermaid svg path.relationshipLine,
+.mermaid svg .transition,
+.mermaid svg .loopLine {
+  stroke-dasharray: 7 6;
+  animation: qc-flow 1.8s linear infinite;
+}
+
+@keyframes qc-node-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes qc-flow {
+  to { stroke-dashoffset: -26; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mermaid svg .node rect,
+  .mermaid svg .node polygon,
+  .mermaid svg .node circle,
+  .mermaid svg .node path,
+  .mermaid svg g.actor rect,
+  .mermaid svg .actor-box,
+  .mermaid svg .er.entityBox,
+  .mermaid svg g.edgePath path,
+  .mermaid svg path.flowchart-link,
+  .mermaid svg .messageLine0,
+  .mermaid svg .messageLine1,
+  .mermaid svg path.relationshipLine,
+  .mermaid svg .transition,
+  .mermaid svg .loopLine {
+    animation: none;
+  }
 }
 
 .md-footer-meta {

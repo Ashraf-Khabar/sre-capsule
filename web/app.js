@@ -15,7 +15,7 @@ import * as analyticsLayout from './js/analytics-layout.js';
 import { applyRoleVisibility, canAccessFinOps, canAccessPlugins, canResolveIncidents, canDeleteIncidents, hasMinRole, roleLabel, canManageTeams, canManageIAM, isAdmin, canAccessView, accessDeniedMessage, defaultViewForRole, canPatchExecutionFlags } from './js/roles.js?v=1.0.101-workflow-page';
 import * as executionHub from './js/execution-hub.js?v=1.0.101-workflow-page';
 import * as reportViewer from './js/report-viewer.js?v=1.0.99-maint';
-import * as workflowEditor from './js/workflow-editor.js?v=1.0.112-mail-size';
+import * as workflowEditor from './js/workflow-editor.js?v=1.0.113-hint';
 import * as healing from './js/healing.js?v=1.0.101-workflow-page';
 import * as dora from './js/dora.js?v=1.0.99-maint';
 import { setupAutocomplete } from './js/autocomplete.js';
