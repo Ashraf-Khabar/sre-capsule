@@ -1,6 +1,6 @@
 # SRE Flight Recorder (SRE Capsule) — Community
 
-[![Version](https://img.shields.io/badge/version-v1.0.17-blue.svg)](https://sre-capsule.github.io/sre-capsule-community/)
+[![Version](https://img.shields.io/badge/version-v1.0.19-blue.svg)](https://sre-capsule.github.io/sre-capsule-community/)
 ![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)
 
 **SRE Capsule** is an SRE control plane for CI/CD and E2E test failures: ingest, correlate, quarantine flaky tests, run native integrations (no shell plugins), AI RCA, FinOps, DORA, and a full web dashboard.
